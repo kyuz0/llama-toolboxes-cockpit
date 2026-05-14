@@ -26,3 +26,8 @@
 ## Known Quirks
 *   **Textual Tab States**: Textual aggressively applies backgrounds to focused tabs by default. Explicit CSS targeting with `!important` (`Tab, Tab:hover, Tab:focus, Tab.-active { background: transparent !important; }`) is required to keep the UI clean.
 *   **Date Truncation**: When displaying remote registry dates in DataTables, truncate ISO strings to `[:10]` (`YYYY-MM-DD`) to prevent layout clipping in standard terminal widths.
+
+## Development & Testing Workflow
+*   **Remote Testing Only**: The user tests the application on a dedicated remote server accessed via SSH. The local development environment where the AI agent runs lacks the necessary runtime dependencies (e.g., `huggingface-cli`, Podman/Docker engines with ROCm).
+*   **No Local Execution**: DO NOT attempt to enter toolboxes, or start servers locally to test your code. 
+*   **Ask the User**: Instead of executing potentially failing environment-dependent commands with `run_command`, clearly state what needs to be tested and ask the user to run it on their test server.

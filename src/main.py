@@ -639,7 +639,7 @@ class LlamaCockpitApp(App):
                     
                 for q in quants:
                     if is_quant_downloaded(repo, q):
-                        display_options.append(f"[green][Installed][/green] {q}")
+                        display_options.append(f"[green]✓ Installed[/green]  {q}")
                         installed_flags.append(True)
                     else:
                         display_options.append(q)
@@ -654,9 +654,18 @@ class LlamaCockpitApp(App):
                             
                     cmd = get_download_cmd(repo, quants[choice_idx])
                     with self.suspend():
-                        print(f"\nRunning: {' '.join(cmd)}")
-                        subprocess.run(cmd)
-                        print("\nDownload Complete!")
+                        print(f"\nRunning: HF_XET_HIGH_PERFORMANCE=1 {' '.join(cmd)}")
+                        try:
+                            env = os.environ.copy()
+                            env["HF_XET_HIGH_PERFORMANCE"] = "1"
+                            subprocess.run(cmd, env=env, check=True)
+                            print("\nDownload Complete!")
+                        except FileNotFoundError:
+                            print("\n[ERROR] 'hf' is not installed or not found in PATH.")
+                        except subprocess.CalledProcessError as e:
+                            print(f"\n[ERROR] Download failed with exit code {e.returncode}.")
+                        except Exception as e:
+                            print(f"\n[ERROR] An unexpected error occurred: {e}")
                         input("\nPress Enter to return to UI...")
                 self.refresh_models()
 

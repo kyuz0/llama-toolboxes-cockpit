@@ -140,9 +140,9 @@ def get_download_cmd(repo: str, quant_pattern: str) -> list[str]:
     final_dir = str(get_models_dir() / repo.split('/')[-1])
     
     cmd = [
-        "huggingface-cli", "download",
+        "hf", "download",
         repo,
-        "--include", download_pattern,
+        download_pattern,
         "--local-dir", final_dir
     ]
     return cmd
