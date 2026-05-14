@@ -554,10 +554,14 @@ class LlamaCockpitApp(App):
         custom_args_input = self.query_one("#inp_custom_args", Input)
         # Start with base default
         base_args = "--jinja"
+        selected_path = str(event.value).lower() if event.value else ""
         for m in curated:
-            if m.get("repo") == event.value and m.get("custom_params"):
-                base_args = f"--jinja {m['custom_params']}"
-                break
+            if m.get("custom_params"):
+                # Match repo basename (e.g. "Qwen3.6-27B-MTP-GGUF") against local file path
+                repo_basename = m["repo"].split("/")[-1].lower()
+                if repo_basename in selected_path:
+                    base_args = f"--jinja {m['custom_params']}"
+                    break
         custom_args_input.value = base_args
 
     def refresh_models(self):

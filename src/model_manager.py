@@ -97,16 +97,33 @@ def is_quant_downloaded(repo: str, quant: str) -> bool:
         return False
         
     repo_base = repo.split('/')[-1].replace('-GGUF', '').lower()
+    # Normalized form strips hyphens/underscores for flexible comparison
+    repo_norm = repo_base.replace('-', '').replace('_', '')
     
     # 1. Exact path match based on standard download dir
     standard_dir = models_dir / repo.split('/')[-1]
     if (standard_dir / quant).exists():
         return True
+    
+    def _dir_matches_repo(dirpath: str) -> bool:
+        """Check if a directory path is related to this specific repo."""
+        rel = os.path.relpath(dirpath, models_dir).lower()
+        for part in rel.split(os.sep):
+            if part == '.':
+                continue
+            part_norm = part.replace('-', '').replace('_', '')
+            # Require repo_base to be IN the dir name (not the reverse),
+            # so "qwen3635ba3b" won't match a dir for "qwen3635ba3bmtp"
+            if repo_norm in part_norm:
+                return True
+        return False
         
     # 2. Fuzzy scan across models_dir
     for root, dirs, files in os.walk(models_dir):
-        # check files
         if quant.endswith(".gguf"):
+            # Only match files in directories related to this repo
+            if not _dir_matches_repo(root):
+                continue
             if "*" in quant:
                 for f in files:
                     if fnmatch.fnmatch(f, quant):
@@ -117,8 +134,7 @@ def is_quant_downloaded(repo: str, quant: str) -> bool:
         else:
             # quant is a folder name like "BF16"
             if quant in dirs:
-                parent_name = os.path.basename(root).lower()
-                if repo_base in parent_name or parent_name in repo_base:
+                if _dir_matches_repo(root):
                     return True
                 try:
                     for f in os.listdir(os.path.join(root, quant)):
