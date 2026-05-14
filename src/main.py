@@ -242,7 +242,7 @@ class LlamaCockpitApp(App):
         with TabbedContent(initial="tab-toolboxes"):
             with TabPane("Interactive Toolboxes", id="tab-toolboxes"):
                 yield Vertical(
-                    Static("A useful interactive shell from where to access llama.cpp cli tools.", classes="box"),
+                    Static("Manage and enter llama.cpp toolbox containers. The cockpit auto-detects your OS and selects the correct backend (toolbox on Fedora/RHEL, distrobox on Ubuntu/Arch).", classes="box"),
                     VerticalScroll(id="toolbox_container"),
                     Horizontal(
                         Button("Enter", id="btn_enter", variant="success"),
