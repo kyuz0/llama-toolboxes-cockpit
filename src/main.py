@@ -500,7 +500,7 @@ class LlamaCockpitApp(App):
             tbs = [tb for tb in tbs if tb["status"] != "Not Installed"]
             if tbs:
                 names = ", ".join([tb['name'] for tb in tbs])
-                confirmed = await self.app.push_screen(ConfirmModal(f"Are you sure you want to delete: {names}?"))
+                confirmed = await self.app.push_screen_wait(ConfirmModal(f"Are you sure you want to delete: {names}?"))
                 if confirmed:
                     with self.suspend():
                         for tb in tbs:
@@ -547,7 +547,7 @@ class LlamaCockpitApp(App):
                 if to_update:
                     names = ", ".join([tb['name'] for tb in to_update])
                     warning_msg = f"The following toolboxes have updates available and will be DELETED and RECREATED:\n  {names}\n\nAny manually installed packages via apt/dnf inside them will be lost. Continue?"
-                    confirmed = await self.app.push_screen(ConfirmModal(warning_msg))
+                    confirmed = await self.app.push_screen_wait(ConfirmModal(warning_msg))
                     if not confirmed: return
                     
                     with self.suspend():
@@ -647,7 +647,7 @@ class LlamaCockpitApp(App):
                             display_options.append(q)
                             installed_flags.append(False)
                             
-                    choice_idx = await self.app.push_screen(SelectModal("Available Quantizations:", display_options))
+                    choice_idx = await self.app.push_screen_wait(SelectModal("Available Quantizations:", display_options))
                     
                     if choice_idx is None:
                         # User cancelled or modal dismissed without choice
@@ -655,7 +655,7 @@ class LlamaCockpitApp(App):
                         
                     if 0 <= choice_idx < len(quants):
                         if installed_flags[choice_idx]:
-                            confirmed = await self.app.push_screen(ConfirmModal(f"The quant {quants[choice_idx]} appears to be already downloaded.\nDo you want to download it anyway?"))
+                            confirmed = await self.app.push_screen_wait(ConfirmModal(f"The quant {quants[choice_idx]} appears to be already downloaded.\nDo you want to download it anyway?"))
                             if not confirmed:
                                 return
                                 
