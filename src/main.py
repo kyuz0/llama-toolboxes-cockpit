@@ -474,7 +474,7 @@ class LlamaCockpitApp(App):
             
         sel_model.set_options(model_opts)
 
-    async def on_button_pressed(self, event: Button.Pressed):
+    def on_button_pressed(self, event: Button.Pressed):
         if event.button.id == "btn_refresh":
             self.refresh_toolboxes()
         elif event.button.id == "btn_scan_models":
@@ -500,14 +500,8 @@ class LlamaCockpitApp(App):
             tbs = [tb for tb in tbs if tb["status"] != "Not Installed"]
             if tbs:
                 names = ", ".join([tb['name'] for tb in tbs])
-                confirmed = await self.app.push_screen_wait(ConfirmModal(f"Are you sure you want to delete: {names}?"))
-                if confirmed:
-                    with self.suspend():
-                        for tb in tbs:
-                            print(f"Deleting {tb['name']}...")
-                            delete_toolbox(tb['name'])
-                    self.selected_toolboxes.clear()
-                    self.refresh_toolboxes()
+                self._pending_delete_tbs = tbs
+                self.app.push_screen(ConfirmModal(f"Are you sure you want to delete: {names}?"), self._on_delete_confirmed)
         elif event.button.id == "btn_create_update":
             tbs = self.get_selected_toolboxes()
             if tbs:
@@ -547,21 +541,12 @@ class LlamaCockpitApp(App):
                 if to_update:
                     names = ", ".join([tb['name'] for tb in to_update])
                     warning_msg = f"The following toolboxes have updates available and will be DELETED and RECREATED:\n  {names}\n\nAny manually installed packages via apt/dnf inside them will be lost. Continue?"
-                    confirmed = await self.app.push_screen_wait(ConfirmModal(warning_msg))
-                    if not confirmed: return
-                    
-                    with self.suspend():
-                        for tb in to_update:
-                            delete_toolbox(tb['name'])
-                
-                with self.suspend():
-                    for tb in to_create + to_update:
-                        print(f"\nDownloading and creating toolbox {tb['name']}...")
-                        create_toolbox(tb['name'], tb['image'], tb.get('args', []))
-                    
-                    input("\nSuccess! Press Enter to return to UI...")
-                self.selected_toolboxes.clear()
-                self.refresh_toolboxes()
+                    self._pending_update_tbs = to_update
+                    self._pending_create_tbs = to_create
+                    self.app.push_screen(ConfirmModal(warning_msg), self._on_update_confirmed)
+                else:
+                    self._do_create_toolboxes(to_create)
+
         elif event.button.id == "btn_enter":
             tb = self.get_selected_toolbox()
             if tb:
@@ -619,71 +604,110 @@ class LlamaCockpitApp(App):
             else:
                 self.notify("Failed to save models directory config.", severity="error")
         elif event.button.id == "btn_download":
+            repo = self.query_one("#sel_download_model", SearchableSelect).value
+            if repo:
+                with self.suspend():
+                    print(f"\nQuerying Hugging Face for {repo}...")
+                quants = get_hf_quants(repo)
+                if not quants:
+                    with self.suspend():
+                        print("No GGUF quants found.")
+                        try: input("Press Enter to return...")
+                        except: pass
+                    return
+                    
+                # Build rich text options indicating installation status
+                display_options = []
+                installed_flags = []
+                
+                with self.suspend():
+                    print("\nChecking local installation status...")
+                    
+                for q in quants:
+                    if is_quant_downloaded(repo, q):
+                        display_options.append(f"[green]\u2713 Installed[/green]  {q}")
+                        installed_flags.append(True)
+                    else:
+                        display_options.append(q)
+                        installed_flags.append(False)
+                        
+                self._download_quants = quants
+                self._download_installed_flags = installed_flags
+                self._download_repo = repo
+                self.app.push_screen(
+                    SelectModal("Available Quantizations:", display_options),
+                    self._on_quant_selected
+                )
+
+    def _on_delete_confirmed(self, confirmed: bool) -> None:
+        if confirmed:
+            tbs = self._pending_delete_tbs
+            with self.suspend():
+                for tb in tbs:
+                    print(f"Deleting {tb['name']}...")
+                    delete_toolbox(tb['name'])
+            self.selected_toolboxes.clear()
+            self.refresh_toolboxes()
+
+    def _on_update_confirmed(self, confirmed: bool) -> None:
+        if not confirmed:
+            return
+        to_update = self._pending_update_tbs
+        to_create = self._pending_create_tbs
+        with self.suspend():
+            for tb in to_update:
+                delete_toolbox(tb['name'])
+        self._do_create_toolboxes(to_create + to_update)
+
+    def _do_create_toolboxes(self, tbs: list) -> None:
+        with self.suspend():
+            for tb in tbs:
+                print(f"\nDownloading and creating toolbox {tb['name']}...")
+                create_toolbox(tb['name'], tb['image'], tb.get('args', []))
+            input("\nSuccess! Press Enter to return to UI...")
+        self.selected_toolboxes.clear()
+        self.refresh_toolboxes()
+
+    def _on_quant_selected(self, choice_idx: int | None) -> None:
+        if choice_idx is None:
+            return
+        quants = self._download_quants
+        installed_flags = self._download_installed_flags
+        repo = self._download_repo
+        if 0 <= choice_idx < len(quants):
+            self._download_choice_idx = choice_idx
+            if installed_flags[choice_idx]:
+                self.app.push_screen(
+                    ConfirmModal(f"The quant {quants[choice_idx]} appears to be already downloaded.\nDo you want to download it anyway?"),
+                    self._on_redownload_confirmed
+                )
+            else:
+                self._do_download_quant(repo, quants[choice_idx])
+
+    def _on_redownload_confirmed(self, confirmed: bool) -> None:
+        if confirmed:
+            self._do_download_quant(self._download_repo, self._download_quants[self._download_choice_idx])
+
+    def _do_download_quant(self, repo: str, quant: str) -> None:
+        cmd = get_download_cmd(repo, quant)
+        with self.suspend():
+            print(f"\nRunning: HF_XET_HIGH_PERFORMANCE=1 {' '.join(cmd)}")
             try:
-                repo = self.query_one("#sel_download_model", SearchableSelect).value
-                if repo:
-                    with self.suspend():
-                        print(f"\nQuerying Hugging Face for {repo}...")
-                    quants = get_hf_quants(repo)
-                    if not quants:
-                        with self.suspend():
-                            print("No GGUF quants found.")
-                            try: input("Press Enter to return...")
-                            except: pass
-                        return
-                        
-                    # Build rich text options indicating installation status
-                    display_options = []
-                    installed_flags = []
-                    
-                    with self.suspend():
-                        print("\nChecking local installation status...")
-                        
-                    for q in quants:
-                        if is_quant_downloaded(repo, q):
-                            display_options.append(f"[green]✓ Installed[/green]  {q}")
-                            installed_flags.append(True)
-                        else:
-                            display_options.append(q)
-                            installed_flags.append(False)
-                            
-                    choice_idx = await self.app.push_screen_wait(SelectModal("Available Quantizations:", display_options))
-                    
-                    if choice_idx is None:
-                        # User cancelled or modal dismissed without choice
-                        return
-                        
-                    if 0 <= choice_idx < len(quants):
-                        if installed_flags[choice_idx]:
-                            confirmed = await self.app.push_screen_wait(ConfirmModal(f"The quant {quants[choice_idx]} appears to be already downloaded.\nDo you want to download it anyway?"))
-                            if not confirmed:
-                                return
-                                
-                        cmd = get_download_cmd(repo, quants[choice_idx])
-                        with self.suspend():
-                            print(f"\nRunning: HF_XET_HIGH_PERFORMANCE=1 {' '.join(cmd)}")
-                            try:
-                                env = os.environ.copy()
-                                env["HF_XET_HIGH_PERFORMANCE"] = "1"
-                                subprocess.run(cmd, env=env, check=True)
-                                print("\nDownload Complete!")
-                            except FileNotFoundError:
-                                print("\n[ERROR] 'hf' is not installed or not found in PATH.")
-                            except subprocess.CalledProcessError as e:
-                                print(f"\n[ERROR] Download failed with exit code {e.returncode}.")
-                            except Exception as e:
-                                print(f"\n[ERROR] An unexpected error occurred: {e}")
-                            
-                            try:
-                                input("\nPress Enter to return to UI...")
-                            except EOFError:
-                                pass
-                    self.refresh_models()
+                env = os.environ.copy()
+                env["HF_XET_HIGH_PERFORMANCE"] = "1"
+                subprocess.run(cmd, env=env, check=True)
+                print("\nDownload Complete!")
+            except FileNotFoundError:
+                print("\n[ERROR] 'hf' is not installed or not found in PATH.")
+            except subprocess.CalledProcessError as e:
+                print(f"\n[ERROR] Download failed with exit code {e.returncode}.")
             except Exception as e:
-                import traceback
-                self.notify(f"Crash in btn_download: {e}", severity="error", timeout=10)
-                with open("crash.log", "w") as f:
-                    f.write(traceback.format_exc())
+                print(f"\n[ERROR] An unexpected error occurred: {e}")
+            try:
+                input("\nPress Enter to return to UI...")
+            except EOFError:
+                pass
+        self.refresh_models()
 
 def cli_main():
     app = LlamaCockpitApp()
