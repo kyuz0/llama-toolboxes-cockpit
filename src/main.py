@@ -71,7 +71,7 @@ class LlamaCockpitApp(App):
     }
     
     .field-label {
-        margin-top: 0;
+        margin-top: 1;
         margin-bottom: 0;
         text-style: bold;
         color: #e57373;
@@ -452,8 +452,10 @@ class LlamaCockpitApp(App):
         
         installed = get_installed_toolboxes(get_official_registry(), engine)
         sel_image = self.query_one("#sel_image", SearchableSelect)
-        images = set([tb['image'] for tb in installed])
+        images = sorted(set([tb['image'] for tb in installed]))
         sel_image.set_options([(img, img) for img in images])
+        if images:
+            sel_image.value = images[0]
 
     @on(SearchableSelect.Changed, "#sel_engine")
     def on_engine_selected(self, event: SearchableSelect.Changed):
@@ -474,6 +476,8 @@ class LlamaCockpitApp(App):
             model_opts.append((m["name"], m["path"]))
             
         sel_model.set_options(model_opts)
+        if model_opts:
+            sel_model.value = model_opts[0][1]
 
     def on_button_pressed(self, event: Button.Pressed):
         handlers = {
