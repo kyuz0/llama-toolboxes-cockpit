@@ -127,7 +127,7 @@ def create_toolbox(name: str, image: str, args: list[str]):
     # Pull first
     subprocess.run([engine, "pull", image], check=True)
     
-    full_cmd = [cmd, "create", "--name", name, "--image", image]
+    full_cmd = [cmd, "create", name, "--image", image]
     if args:
         full_cmd.append("--")
         full_cmd.extend(args)

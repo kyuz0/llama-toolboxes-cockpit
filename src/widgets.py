@@ -1,8 +1,53 @@
 from textual.app import ComposeResult
-from textual.containers import Vertical
-from textual.widgets import Input, OptionList
+from textual.containers import Vertical, Horizontal
+from textual.widgets import Input, OptionList, Button, Label
 from textual import on, events
 from textual.message import Message
+from textual.screen import ModalScreen
+
+class ConfirmModal(ModalScreen[bool]):
+    """A modal dialog that asks a Yes/No question."""
+    def __init__(self, message: str, yes_text: str = "Yes", no_text: str = "No", id: str = None):
+        super().__init__(id=id)
+        self.message = message
+        self.yes_text = yes_text
+        self.no_text = no_text
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="confirm_dialog"):
+            yield Label(self.message, id="confirm_message")
+            with Horizontal(id="confirm_buttons"):
+                yield Button(self.yes_text, variant="error", id="btn_yes")
+                yield Button(self.no_text, variant="primary", id="btn_no")
+
+    @on(Button.Pressed)
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "btn_yes":
+            self.dismiss(True)
+        else:
+            self.dismiss(False)
+
+class SelectModal(ModalScreen[int]):
+    """A modal dialog that asks the user to select an option."""
+    def __init__(self, title: str, options: list[str], id: str = None):
+        super().__init__(id=id)
+        self.title = title
+        self.options = options
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="select_dialog"):
+            yield Label(self.title, id="select_title")
+            yield OptionList(*self.options, id="select_list")
+            with Horizontal(id="select_buttons"):
+                yield Button("Cancel", variant="error", id="btn_cancel")
+
+    @on(OptionList.OptionSelected, "#select_list")
+    def on_option_selected(self, event: OptionList.OptionSelected) -> None:
+        self.dismiss(event.option_index)
+
+    @on(Button.Pressed, "#btn_cancel")
+    def on_cancel(self, event: Button.Pressed) -> None:
+        self.dismiss(None)
 
 class SearchableSelect(Vertical):
     """A custom filterable combobox widget."""

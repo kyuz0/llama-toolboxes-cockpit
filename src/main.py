@@ -10,7 +10,7 @@ from src.toolbox_manager import get_all_toolboxes, get_installed_toolboxes, dete
 from src.model_manager import scan_local_models, get_hf_quants, get_download_cmd, get_models_dir, save_models_dir
 from src.server_runner import build_server_cmd
 from src.config import load_models, get_official_registry, load_toolboxes
-from src.widgets import SearchableSelect
+from src.widgets import SearchableSelect, ConfirmModal, SelectModal
 import pyfiglet
 
 def generate_banner() -> str:
@@ -190,6 +190,45 @@ class LlamaCockpitApp(App):
         margin: 0;
     }
     
+    ConfirmModal, SelectModal {
+        align: center middle;
+        background: rgba(0, 0, 0, 0.7);
+    }
+
+    #confirm_dialog {
+        width: 60;
+        height: auto;
+        border: solid #d32f2f;
+        background: #1e1e1e;
+        padding: 1 2;
+    }
+    
+    #select_dialog {
+        width: 80;
+        height: auto;
+        border: solid #d32f2f;
+        background: #1e1e1e;
+        padding: 1 2;
+    }
+    
+    #confirm_message, #select_title {
+        text-align: center;
+        text-style: bold;
+        color: #e57373;
+        margin-bottom: 1;
+    }
+
+    #confirm_buttons, #select_buttons {
+        align: center middle;
+        height: auto;
+    }
+    
+    #select_list {
+        border: solid #d32f2f;
+        height: 1fr;
+        min-height: 10;
+        margin-bottom: 1;
+    }
     """
 
     def compose(self) -> ComposeResult:
@@ -432,7 +471,7 @@ class LlamaCockpitApp(App):
             
         sel_model.set_options(model_opts)
 
-    def on_button_pressed(self, event: Button.Pressed):
+    async def on_button_pressed(self, event: Button.Pressed):
         if event.button.id == "btn_refresh":
             self.refresh_toolboxes()
         elif event.button.id == "btn_scan_models":
@@ -457,59 +496,62 @@ class LlamaCockpitApp(App):
             tbs = self.get_selected_toolboxes()
             tbs = [tb for tb in tbs if tb["status"] != "Not Installed"]
             if tbs:
-                with self.suspend():
-                    names = ", ".join([tb['name'] for tb in tbs])
-                    ans = input(f"\\nAre you sure you want to delete: {names}? [y/N]: ")
-                    if ans.lower() == 'y':
+                names = ", ".join([tb['name'] for tb in tbs])
+                confirmed = await self.app.push_screen(ConfirmModal(f"Are you sure you want to delete: {names}?"))
+                if confirmed:
+                    with self.suspend():
                         for tb in tbs:
                             print(f"Deleting {tb['name']}...")
                             delete_toolbox(tb['name'])
-                self.selected_toolboxes.clear()
-                self.refresh_toolboxes()
+                    self.selected_toolboxes.clear()
+                    self.refresh_toolboxes()
         elif event.button.id == "btn_create_update":
             tbs = self.get_selected_toolboxes()
             if tbs:
+                to_create = []
+                to_update = []
+                already_updated = []
+                
                 with self.suspend():
-                    to_create = []
-                    to_update = []
-                    already_updated = []
-                    
                     print("\\nChecking latest image versions from registry...")
-                    for tb in tbs:
-                        if tb["status"] == "Not Installed":
-                            to_create.append(tb)
-                        else:
-                            remote_date = get_remote_image_date(tb['image'])
-                            if remote_date:
-                                remote_date_str = remote_date[:10]
-                                if tb.get('created') and remote_date_str > tb.get('created', ''):
-                                    to_update.append(tb)
-                                else:
-                                    already_updated.append(tb)
+                for tb in tbs:
+                    if tb["status"] == "Not Installed":
+                        to_create.append(tb)
+                    else:
+                        remote_date = get_remote_image_date(tb['image'])
+                        if remote_date:
+                            remote_date_str = remote_date[:10]
+                            if tb.get('created') and remote_date_str > tb.get('created', ''):
+                                to_update.append(tb)
                             else:
                                 already_updated.append(tb)
-                    
-                    if already_updated:
+                        else:
+                            already_updated.append(tb)
+                
+                if already_updated:
+                    with self.suspend():
                         print("\\nThe following toolboxes are already up-to-date:")
                         for tb in already_updated:
                             print(f"  - {tb['name']}")
-                    
-                    if not to_create and not to_update:
+                
+                if not to_create and not to_update:
+                    with self.suspend():
                         input("\\nNothing to do. Press Enter to return to UI...")
-                        self.selected_toolboxes.clear()
-                        self.refresh_toolboxes()
-                        return
-                        
-                    if to_update:
-                        names = ", ".join([tb['name'] for tb in to_update])
-                        print(f"\\nWARNING: The following toolboxes have updates available and will be DELETED and RECREATED:")
-                        print(f"  {names}")
-                        ans = input("Any manually installed packages via apt/dnf inside them will be lost. Continue? [y/N]: ")
-                        if ans.lower() != 'y': return
-                        
+                    self.selected_toolboxes.clear()
+                    self.refresh_toolboxes()
+                    return
+                    
+                if to_update:
+                    names = ", ".join([tb['name'] for tb in to_update])
+                    warning_msg = f"The following toolboxes have updates available and will be DELETED and RECREATED:\\n  {names}\\n\\nAny manually installed packages via apt/dnf inside them will be lost. Continue?"
+                    confirmed = await self.app.push_screen(ConfirmModal(warning_msg))
+                    if not confirmed: return
+                    
+                    with self.suspend():
                         for tb in to_update:
                             delete_toolbox(tb['name'])
-                    
+                
+                with self.suspend():
                     for tb in to_create + to_update:
                         print(f"\\nDownloading and creating toolbox {tb['name']}...")
                         create_toolbox(tb['name'], tb['image'], tb.get('args', []))
@@ -577,23 +619,21 @@ class LlamaCockpitApp(App):
             if repo:
                 with self.suspend():
                     print(f"\\nQuerying Hugging Face for {repo}...")
-                    quants = get_hf_quants(repo)
-                    if not quants:
+                quants = get_hf_quants(repo)
+                if not quants:
+                    with self.suspend():
                         print("No GGUF quants found.")
                         input("Press Enter to return...")
-                        return
-                        
-                    print("\\nAvailable Quantizations:")
-                    for i, q in enumerate(quants):
-                        print(f"[{i}] {q}")
-                        
-                    choice = input("\\nSelect number to download (or press Enter to cancel): ")
-                    if choice.isdigit() and 0 <= int(choice) < len(quants):
-                        cmd = get_download_cmd(repo, quants[int(choice)])
+                    return
+                    
+                choice_idx = await self.app.push_screen(SelectModal("Available Quantizations:", quants))
+                if choice_idx is not None and 0 <= choice_idx < len(quants):
+                    cmd = get_download_cmd(repo, quants[choice_idx])
+                    with self.suspend():
                         print(f"\\nRunning: {' '.join(cmd)}")
                         subprocess.run(cmd)
                         print("\\nDownload Complete!")
-                    input("\\nPress Enter to return to UI...")
+                        input("\\nPress Enter to return to UI...")
                 self.refresh_models()
 
 def cli_main():
