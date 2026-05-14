@@ -198,7 +198,7 @@ class LlamaCockpitApp(App):
     }
 
     #confirm_dialog {
-        width: 60;
+        width: 80;
         height: auto;
         border: solid #d32f2f;
         background: #1e1e1e;
@@ -278,7 +278,7 @@ class LlamaCockpitApp(App):
                 )
             with TabPane("Model Manager", id="tab-models"):
                 yield Vertical(
-                    Static("Download and manage GGUF models for inference.\\nModels will be downloaded to and scanned from the directory configured below.", classes="box"),
+                    Static("Download and manage GGUF models for inference.\nModels will be downloaded to and scanned from the directory configured below.", classes="box"),
                     Horizontal(
                         Input(placeholder="~/models", id="inp_models_dir", value=str(get_models_dir())),
                         Button("Save Path", id="btn_save_models_path"),
@@ -516,7 +516,7 @@ class LlamaCockpitApp(App):
                 already_updated = []
                 
                 with self.suspend():
-                    print("\\nChecking latest image versions from registry...")
+                    print("\nChecking latest image versions from registry...")
                 for tb in tbs:
                     if tb["status"] == "Not Installed":
                         to_create.append(tb)
@@ -533,20 +533,20 @@ class LlamaCockpitApp(App):
                 
                 if already_updated:
                     with self.suspend():
-                        print("\\nThe following toolboxes are already up-to-date:")
+                        print("\nThe following toolboxes are already up-to-date:")
                         for tb in already_updated:
                             print(f"  - {tb['name']}")
                 
                 if not to_create and not to_update:
                     with self.suspend():
-                        input("\\nNothing to do. Press Enter to return to UI...")
+                        input("\nNothing to do. Press Enter to return to UI...")
                     self.selected_toolboxes.clear()
                     self.refresh_toolboxes()
                     return
                     
                 if to_update:
                     names = ", ".join([tb['name'] for tb in to_update])
-                    warning_msg = f"The following toolboxes have updates available and will be DELETED and RECREATED:\\n  {names}\\n\\nAny manually installed packages via apt/dnf inside them will be lost. Continue?"
+                    warning_msg = f"The following toolboxes have updates available and will be DELETED and RECREATED:\n  {names}\n\nAny manually installed packages via apt/dnf inside them will be lost. Continue?"
                     confirmed = await self.app.push_screen(ConfirmModal(warning_msg))
                     if not confirmed: return
                     
@@ -556,10 +556,10 @@ class LlamaCockpitApp(App):
                 
                 with self.suspend():
                     for tb in to_create + to_update:
-                        print(f"\\nDownloading and creating toolbox {tb['name']}...")
+                        print(f"\nDownloading and creating toolbox {tb['name']}...")
                         create_toolbox(tb['name'], tb['image'], tb.get('args', []))
                     
-                    input("\\nSuccess! Press Enter to return to UI...")
+                    input("\nSuccess! Press Enter to return to UI...")
                 self.selected_toolboxes.clear()
                 self.refresh_toolboxes()
         elif event.button.id == "btn_enter":
@@ -583,8 +583,8 @@ class LlamaCockpitApp(App):
             if engine and image and model_path and ctx.isdigit():
                 cmd = build_server_cmd(engine, image, model_path, int(ctx), use_fa, use_no_mmap, custom_args, host, port)
                 with self.suspend():
-                    print(f"\\nStarting server with command:\\n{' '.join(cmd)}\\n")
-                    print("Press Ctrl+C to stop the server and return to the UI.\\n")
+                    print(f"\nStarting server with command:\n{' '.join(cmd)}\n")
+                    print("Press Ctrl+C to stop the server and return to the UI.\n")
                     subprocess.run(cmd)
         elif event.button.id and event.button.id.startswith("btn_toggle_dt_"):
             dt_id = event.button.id.replace("btn_toggle_", "")
@@ -622,7 +622,7 @@ class LlamaCockpitApp(App):
             repo = self.query_one("#sel_download_model", SearchableSelect).value
             if repo:
                 with self.suspend():
-                    print(f"\\nQuerying Hugging Face for {repo}...")
+                    print(f"\nQuerying Hugging Face for {repo}...")
                 quants = get_hf_quants(repo)
                 if not quants:
                     with self.suspend():
@@ -634,10 +634,10 @@ class LlamaCockpitApp(App):
                 if choice_idx is not None and 0 <= choice_idx < len(quants):
                     cmd = get_download_cmd(repo, quants[choice_idx])
                     with self.suspend():
-                        print(f"\\nRunning: {' '.join(cmd)}")
+                        print(f"\nRunning: {' '.join(cmd)}")
                         subprocess.run(cmd)
-                        print("\\nDownload Complete!")
-                        input("\\nPress Enter to return to UI...")
+                        print("\nDownload Complete!")
+                        input("\nPress Enter to return to UI...")
                 self.refresh_models()
 
 def cli_main():
