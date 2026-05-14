@@ -19,5 +19,21 @@ def load_toolboxes() -> dict:
             return json.load(f)
     return {}
 
-def get_official_registry() -> str:
-    return load_toolboxes().get("registry", "docker.io/kyuz0/amd-strix-halo-toolboxes")
+def get_platforms() -> list[dict]:
+    """Returns the list of platform definitions from toolboxes.json."""
+    data = load_toolboxes()
+    return data.get("platforms", [])
+
+def get_platform(platform_id: str) -> dict | None:
+    """Returns a single platform dict by its ID, or None if not found."""
+    for p in get_platforms():
+        if p.get("id") == platform_id:
+            return p
+    return None
+
+def get_platform_registry(platform_id: str) -> str:
+    """Returns the Docker registry for a given platform ID."""
+    platform = get_platform(platform_id)
+    if platform:
+        return platform.get("registry", "")
+    return ""

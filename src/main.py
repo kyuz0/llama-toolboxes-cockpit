@@ -7,9 +7,9 @@ import os
 import subprocess
 
 from src.toolbox_manager import get_all_toolboxes, get_installed_toolboxes, detect_engines, get_os_toolbox_cmd, get_remote_image_date, create_toolbox, delete_toolbox
-from src.model_manager import scan_local_models, get_hf_quants, get_download_cmd, get_models_dir, save_models_dir, is_quant_downloaded
+from src.model_manager import scan_local_models, get_hf_quants, get_download_cmd, get_models_dir, save_models_dir, is_quant_downloaded, get_active_platform, save_active_platform
 from src.server_runner import build_server_cmd
-from src.config import load_models, get_official_registry, load_toolboxes
+from src.config import load_models, get_platforms, get_platform, get_platform_registry
 from src.widgets import ConfirmModal, SelectModal
 import pyfiglet
 
@@ -129,6 +129,29 @@ class LlamaCockpitApp(App):
         margin-bottom: 0;
         height: auto;
         text-style: bold;
+    }
+    
+    #platform_row {
+        align: center middle;
+        height: auto;
+        margin-bottom: 1;
+    }
+    
+    #platform_label {
+        color: #e57373;
+        text-style: bold;
+        margin-right: 2;
+    }
+    
+    #btn_switch_platform {
+        height: 1;
+        min-width: 18;
+        border: none;
+        background: #333333;
+    }
+    
+    #btn_switch_platform:hover {
+        background: #d32f2f;
     }
     
     TabbedContent { height: 1fr; }
@@ -266,6 +289,11 @@ class LlamaCockpitApp(App):
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
         yield Static(generate_banner(), id="banner")
+        yield Horizontal(
+            Label("", id="platform_label"),
+            Button("Switch Platform", id="btn_switch_platform"),
+            id="platform_row"
+        )
         with TabbedContent(initial="tab-toolboxes"):
             with TabPane("Interactive Toolboxes", id="tab-toolboxes"):
                 yield Vertical(
@@ -356,6 +384,9 @@ class LlamaCockpitApp(App):
         self.register_theme(cockpit_theme)
         self.theme = "cockpit-red"
         
+        self.active_platform_id = get_active_platform()
+        self._update_platform_label()
+        
         self.selected_toolboxes = set()
         self.refresh_toolboxes()
         self.refresh_models()
@@ -369,6 +400,15 @@ class LlamaCockpitApp(App):
         curated = load_models()
         sel_dl = self.query_one("#sel_download_model", Select)
         sel_dl.set_options([(m["name"], m["repo"]) for m in curated])
+
+    def _update_platform_label(self):
+        platform = get_platform(self.active_platform_id)
+        if platform:
+            name = platform.get("name", self.active_platform_id)
+            desc = platform.get("description", "")
+            self.query_one("#platform_label", Label).update(f"Platform: {name}  —  {desc}")
+        else:
+            self.query_one("#platform_label", Label).update(f"Platform: {self.active_platform_id}")
 
     @on(DataTable.RowSelected)
     def on_row_selected(self, event: DataTable.RowSelected):
@@ -437,8 +477,12 @@ class LlamaCockpitApp(App):
     def refresh_toolboxes(self):
         self._mounting_tables = True
         
-        config_data = load_toolboxes()
-        grouped_data = get_all_toolboxes(get_official_registry(), config_data)
+        platform = get_platform(self.active_platform_id)
+        if not platform:
+            self._mounting_tables = False
+            return
+        registry = platform.get("registry", "")
+        grouped_data = get_all_toolboxes(registry, platform)
         
         self.toolboxes_dict = {}
         
@@ -490,7 +534,8 @@ class LlamaCockpitApp(App):
         engine = sel_engine.value
         if not isinstance(engine, str): return
         
-        installed = get_installed_toolboxes(get_official_registry(), engine)
+        registry = get_platform_registry(self.active_platform_id)
+        installed = get_installed_toolboxes(registry, engine)
         sel_image = self.query_one("#sel_image", Select)
         images = sorted(set([tb['image'] for tb in installed]))
         sel_image.set_options([(img, img) for img in images])
@@ -530,6 +575,7 @@ class LlamaCockpitApp(App):
             "btn_start_server": self._handle_start_server,
             "btn_save_models_path": self._handle_save_models_path,
             "btn_download": self._handle_download,
+            "btn_switch_platform": self._handle_switch_platform,
         }
 
         btn_id = event.button.id
@@ -537,6 +583,36 @@ class LlamaCockpitApp(App):
             handlers[btn_id]()
         elif btn_id and btn_id.startswith("btn_toggle_dt_"):
             self._handle_toggle_select_all(btn_id)
+
+    # ── Platform Switch Handler ─────────────────────────────────────
+
+    def _handle_switch_platform(self):
+        platforms = get_platforms()
+        display_options = []
+        for p in platforms:
+            marker = "● " if p["id"] == self.active_platform_id else "  "
+            display_options.append(f"{marker}{p['name']}  —  {p.get('description', '')}")
+        self._switch_platforms = platforms
+        self.app.push_screen(
+            SelectModal("Select Platform:", display_options),
+            self._on_platform_selected
+        )
+
+    def _on_platform_selected(self, choice_idx: int | None) -> None:
+        if choice_idx is None:
+            return
+        platforms = self._switch_platforms
+        if 0 <= choice_idx < len(platforms):
+            new_id = platforms[choice_idx]["id"]
+            if new_id == self.active_platform_id:
+                return
+            self.active_platform_id = new_id
+            save_active_platform(new_id)
+            self._update_platform_label()
+            self.selected_toolboxes.clear()
+            self.refresh_toolboxes()
+            self.refresh_server_images()
+            self.notify(f"Switched to {platforms[choice_idx]['name']}", timeout=3)
 
     # ── Toolbox Handlers ──────────────────────────────────────────
 

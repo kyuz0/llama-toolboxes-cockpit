@@ -40,6 +40,36 @@ def save_models_dir(path_str: str) -> bool:
         print(f"Error saving config: {e}")
         return False
 
+def get_active_platform() -> str:
+    """Reads the active platform ID from config, defaults to 'strix-halo'."""
+    if CONFIG_FILE.exists():
+        try:
+            with open(CONFIG_FILE, "r") as f:
+                conf = json.load(f)
+                return conf.get("active_platform", "strix-halo")
+        except Exception:
+            pass
+    return "strix-halo"
+
+def save_active_platform(platform_id: str) -> bool:
+    """Persists the active platform ID to the config file."""
+    conf = {}
+    if CONFIG_FILE.exists():
+        try:
+            with open(CONFIG_FILE, "r") as f:
+                conf = json.load(f)
+        except Exception:
+            pass
+
+    conf["active_platform"] = platform_id
+    try:
+        with open(CONFIG_FILE, "w") as f:
+            json.dump(conf, f, indent=4)
+        return True
+    except Exception as e:
+        print(f"Error saving config: {e}")
+        return False
+
 def scan_local_models() -> list[dict]:
     models_dir = get_models_dir()
     if not models_dir.exists():
