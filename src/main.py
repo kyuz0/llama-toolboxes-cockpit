@@ -1,8 +1,9 @@
 from textual.app import App, ComposeResult
 from textual.theme import Theme
 from textual import on, events, work
-from textual.widgets import Header, Footer, TabbedContent, TabPane, Button, Static, Label, Input, Checkbox, DataTable, Collapsible, Select
+from textual.widgets import Header, Footer, TabbedContent, TabPane, Button, Static, Label, Input, Checkbox, DataTable, Collapsible
 from textual.containers import Vertical, Horizontal, VerticalScroll
+from textual_autocomplete import AutoComplete
 import os
 import subprocess
 
@@ -10,7 +11,7 @@ from src.toolbox_manager import get_all_toolboxes, get_installed_toolboxes, dete
 from src.model_manager import scan_local_models, get_hf_quants, get_download_cmd, get_models_dir, save_models_dir, is_quant_downloaded
 from src.server_runner import build_server_cmd
 from src.config import load_models, get_official_registry, load_toolboxes
-from src.widgets import SearchableSelect, ConfirmModal, SelectModal
+from src.widgets import ConfirmModal, SelectModal
 import pyfiglet
 
 def generate_banner() -> str:
@@ -93,7 +94,7 @@ class LlamaCockpitApp(App):
         content-align: left middle;
     }
 
-    .inline-row Select {
+    .inline-row AutoComplete {
         width: 1fr;
     }
 
@@ -159,26 +160,6 @@ class LlamaCockpitApp(App):
         height: 1;
         border: none;
         min-width: 12;
-    }
-    
-    SearchableSelect {
-        height: auto;
-        margin: 0;
-    }
-    
-    #search_options {
-        border: solid #d32f2f;
-        height: auto;
-        max-height: 10;
-        margin: 0;
-    }
-    
-    .hidden {
-        display: none;
-    }
-    
-    .visible {
-        display: block;
     }
     
     #host_port_row {
@@ -301,23 +282,29 @@ class LlamaCockpitApp(App):
                     )
                 )
             with TabPane("Server Mode", id="tab-server"):
+                inp_engine = Input(placeholder="Select Container Engine", id="inp_engine")
+                inp_image = Input(placeholder="Select Toolbox Image", id="inp_image")
+                inp_model = Input(placeholder="Select Local Model", id="inp_model")
                 yield VerticalScroll(
                     Static("Launch a Llama.cpp inference server directly without entering an interactive environment.", classes="box"),
                     Horizontal(
                         Label("Engine", classes="inline-label"),
-                        Select([], id="sel_engine", prompt="Select Container Engine"),
+                        inp_engine,
                         classes="inline-row"
                     ),
+                    AutoComplete(inp_engine, candidates=self._get_engine_candidates, id="ac_engine"),
                     Horizontal(
                         Label("Image", classes="inline-label"),
-                        Select([], id="sel_image", prompt="Select Toolbox Image"),
+                        inp_image,
                         classes="inline-row"
                     ),
+                    AutoComplete(inp_image, candidates=self._get_image_candidates, id="ac_image"),
                     Horizontal(
                         Label("Model", classes="inline-label"),
-                        Select([], id="sel_model", prompt="Select Local Model"),
+                        inp_model,
                         classes="inline-row"
                     ),
+                    AutoComplete(inp_model, candidates=self._get_model_candidates, id="ac_model"),
                     Horizontal(
                         Horizontal(Label("Context", classes="inline-label"), Input(placeholder="12288", id="inp_ctx", value="12288"), classes="short-field"),
                         Horizontal(Label("Host", classes="inline-label"), Input(placeholder="localhost", id="inp_host", value="localhost"), classes="short-field"),
@@ -340,6 +327,7 @@ class LlamaCockpitApp(App):
                     )
                 )
             with TabPane("Model Manager", id="tab-models"):
+                inp_download = Input(placeholder="Search curated models...", id="inp_download_model")
                 yield Vertical(
                     Static("Download and manage GGUF models for inference.\nModels will be downloaded to and scanned from the directory configured below.", classes="box"),
                     Horizontal(
@@ -349,11 +337,12 @@ class LlamaCockpitApp(App):
                     ),
                     DataTable(id="local_model_list", cursor_type="row"),
                     Horizontal(
-                        SearchableSelect(prompt="Download Curated Model", id="sel_download_model"),
+                        inp_download,
                         Button("Download", id="btn_download", variant="success"),
                         Button("Scan Local", id="btn_scan_models"),
                         id="btn_row"
-                    )
+                    ),
+                    AutoComplete(inp_download, candidates=self._get_download_candidates, id="ac_download")
                 )
         yield Footer()
 
@@ -376,18 +365,20 @@ class LlamaCockpitApp(App):
         self.theme = "cockpit-red"
         
         self.selected_toolboxes = set()
+        self._engine_options = []
+        self._image_options = []
+        self._model_options = []
+        self._download_options = []
         self.refresh_toolboxes()
         self.refresh_models()
         
         engines = detect_engines()
-        sel_engine = self.query_one("#sel_engine", Select)
-        sel_engine.set_options([(e, e) for e in engines])
+        self._engine_options = [(e, e) for e in engines]
         if engines:
-            sel_engine.value = engines[0]
+            self.query_one("#inp_engine", Input).value = engines[0]
 
         curated = load_models()
-        sel_dl = self.query_one("#sel_download_model", SearchableSelect)
-        sel_dl.set_options([(m["name"], m["repo"]) for m in curated])
+        self._download_options = [(m["name"], m["repo"]) for m in curated]
 
     @on(DataTable.RowSelected)
     def on_row_selected(self, event: DataTable.RowSelected):
@@ -504,21 +495,40 @@ class LlamaCockpitApp(App):
         self.call_next(finish_mounting)
 
 
+    def _get_engine_candidates(self, state):
+        return [label for label, val in self._engine_options]
+
+    def _get_image_candidates(self, state):
+        return [label for label, val in self._image_options]
+
+    def _get_model_candidates(self, state):
+        return [label for label, val in self._model_options]
+
+    def _get_download_candidates(self, state):
+        return [label for label, val in self._download_options]
+
+    def _lookup_option(self, options, input_text):
+        """Look up the value for a given input text in an options list."""
+        for label, val in options:
+            if label == input_text:
+                return val
+        return input_text
+
     def refresh_server_images(self):
-        sel_engine = self.query_one("#sel_engine", Select)
-        engine = sel_engine.value
-        if not isinstance(engine, str): return
+        inp_engine = self.query_one("#inp_engine", Input)
+        engine = inp_engine.value.strip()
+        if not engine: return
         
         installed = get_installed_toolboxes(get_official_registry(), engine)
-        sel_image = self.query_one("#sel_image", Select)
         images = sorted(set([tb['image'] for tb in installed]))
-        sel_image.set_options([(img, img) for img in images])
+        self._image_options = [(img, img) for img in images]
         if images:
-            sel_image.value = images[0]
+            self.query_one("#inp_image", Input).value = images[0]
 
-    @on(Select.Changed, "#sel_engine")
-    def on_engine_selected(self, event: Select.Changed):
-        self.refresh_server_images()
+    @on(Input.Changed, "#inp_engine")
+    def on_engine_changed(self, event: Input.Changed):
+        if event.value.strip() in [label for label, _ in self._engine_options]:
+            self.refresh_server_images()
 
     def refresh_models(self):
         models = scan_local_models()
@@ -527,16 +537,15 @@ class LlamaCockpitApp(App):
         dt.clear(columns=True)
         dt.add_columns("Local GGUF Models")
         
-        sel_model = self.query_one("#sel_model", Select)
-        model_opts = []
+        sel_model_opts = []
         
         for m in models:
             dt.add_row(m["name"])
-            model_opts.append((m["name"], m["path"]))
+            sel_model_opts.append((m["name"], m["path"]))
             
-        sel_model.set_options(model_opts)
-        if model_opts:
-            sel_model.value = model_opts[0][1]
+        self._model_options = sel_model_opts
+        if sel_model_opts:
+            self.query_one("#inp_model", Input).value = sel_model_opts[0][0]
 
     def on_button_pressed(self, event: Button.Pressed):
         handlers = {
@@ -659,9 +668,9 @@ class LlamaCockpitApp(App):
     # ── Server Handler ────────────────────────────────────────────
 
     def _handle_start_server(self):
-        engine = self.query_one("#sel_engine", Select).value
-        image = self.query_one("#sel_image", Select).value
-        model_path = self.query_one("#sel_model", Select).value
+        engine = self.query_one("#inp_engine", Input).value.strip()
+        image = self.query_one("#inp_image", Input).value.strip()
+        model_path = self._lookup_option(self._model_options, self.query_one("#inp_model", Input).value.strip())
         ctx = self.query_one("#inp_ctx", Input).value
         host = self.query_one("#inp_host", Input).value
         port = self.query_one("#inp_port", Input).value
@@ -712,7 +721,8 @@ class LlamaCockpitApp(App):
             self.notify("Failed to save models directory config.", severity="error")
 
     def _handle_download(self):
-        repo = self.query_one("#sel_download_model", SearchableSelect).value
+        input_text = self.query_one("#inp_download_model", Input).value.strip()
+        repo = self._lookup_option(self._download_options, input_text)
         if not repo:
             return
         with self.suspend():
