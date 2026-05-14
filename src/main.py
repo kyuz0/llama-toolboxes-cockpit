@@ -188,6 +188,8 @@ class LlamaCockpitApp(App):
     
     Input, Checkbox {
         margin: 0;
+        height: 1;
+        border: none;
     }
     
     ConfirmModal, SelectModal {
@@ -266,6 +268,7 @@ class LlamaCockpitApp(App):
                     ),
                     Label("Options", classes="field-label"),
                     Checkbox("Enable Flash Attention (-fa 1)", id="chk_fa", value=True),
+                    Checkbox("Disable Memory Mapping (--no-mmap)", id="chk_no_mmap", value=True),
                     Label("Additional Parameters", classes="field-label"),
                     Input(placeholder="Additional Parameters (e.g. --batch-size 512)", id="inp_custom_args", value="--jinja"),
                     Horizontal(
@@ -574,10 +577,11 @@ class LlamaCockpitApp(App):
             host = self.query_one("#inp_host", Input).value
             port = self.query_one("#inp_port", Input).value
             use_fa = self.query_one("#chk_fa", Checkbox).value
+            use_no_mmap = self.query_one("#chk_no_mmap", Checkbox).value
             custom_args = self.query_one("#inp_custom_args", Input).value
             
             if engine and image and model_path and ctx.isdigit():
-                cmd = build_server_cmd(engine, image, model_path, int(ctx), use_fa, custom_args, host, port)
+                cmd = build_server_cmd(engine, image, model_path, int(ctx), use_fa, use_no_mmap, custom_args, host, port)
                 with self.suspend():
                     print(f"\\nStarting server with command:\\n{' '.join(cmd)}\\n")
                     print("Press Ctrl+C to stop the server and return to the UI.\\n")
