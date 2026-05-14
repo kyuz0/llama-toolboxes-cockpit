@@ -1,6 +1,6 @@
 from textual.app import App, ComposeResult
 from textual.theme import Theme
-from textual import on, events
+from textual import on, events, work
 from textual.widgets import Header, Footer, TabbedContent, TabPane, Button, Static, Label, Input, Checkbox, DataTable, Collapsible
 from textual.containers import Vertical, Horizontal, VerticalScroll
 import os
@@ -506,16 +506,20 @@ class LlamaCockpitApp(App):
         if not tbs:
             self.notify("No toolboxes selected.", severity="warning")
             return
+        self.notify(f"Checking updates for {len(tbs)} toolbox(es)...", timeout=3)
+        self._check_updates_bg(tbs)
+
+    @work(thread=True, exclusive=True)
+    def _check_updates_bg(self, tbs: list):
         for tb in tbs:
-            with self.suspend():
-                print(f"Checking updates for {tb['image']} on Docker Hub...")
             remote_date = get_remote_image_date(tb['image'])
             if remote_date:
                 remote_date_str = remote_date[:10]
-                self._update_toolbox_cell(tb['name'], 5, remote_date_str)
+                self.app.call_from_thread(self._update_toolbox_cell, tb['name'], 5, remote_date_str)
                 created_date = self._get_toolbox_cell(tb['name'], 4)
                 if created_date and remote_date_str > created_date:
-                    self._update_toolbox_cell(tb['name'], 3, "[yellow]Needs Update[/yellow]")
+                    self.app.call_from_thread(self._update_toolbox_cell, tb['name'], 3, "[yellow]Needs Update[/yellow]")
+        self.app.call_from_thread(self.notify, "Update check complete.", timeout=3)
 
     def _handle_delete(self):
         tbs = self.get_selected_toolboxes()
