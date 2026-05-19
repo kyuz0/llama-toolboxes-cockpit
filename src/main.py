@@ -680,6 +680,7 @@ class LlamaCockpitApp(App):
 
     def _handle_refresh(self):
         self.refresh_toolboxes()
+        self.notify("Toolbox list refreshed.", timeout=3)
 
     def _handle_check_updates(self):
         tbs = self.get_selected_toolboxes()
@@ -823,6 +824,7 @@ class LlamaCockpitApp(App):
 
     def _handle_scan_models(self):
         self.refresh_models()
+        self.notify("Local models scanned.", timeout=3)
 
     def _handle_save_models_path(self):
         new_path = self.query_one("#inp_models_dir", Input).value

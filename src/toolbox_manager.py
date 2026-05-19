@@ -2,12 +2,13 @@ import subprocess
 import os
 import urllib.request
 import json
+import shutil
 
 def detect_engines() -> list[str]:
     engines = []
-    if subprocess.run(["which", "podman"], capture_output=True).returncode == 0:
+    if shutil.which("podman"):
         engines.append("podman")
-    if subprocess.run(["which", "docker"], capture_output=True).returncode == 0:
+    if shutil.which("docker"):
         engines.append("docker")
     return engines
 
@@ -64,7 +65,7 @@ def get_installed_toolboxes(registry_match: str, specific_engine: str = None) ->
                                 "created": created,
                                 "engine": engine
                             })
-        except subprocess.SubprocessError:
+        except Exception:
             pass
     return toolboxes
 
