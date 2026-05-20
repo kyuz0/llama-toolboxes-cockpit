@@ -25,7 +25,7 @@ def get_os_toolbox_cmd() -> str:
     if os.path.exists("/etc/os-release"):
         with open("/etc/os-release", "r") as f:
             content = f.read().lower()
-            if "id=ubuntu" in content or "id=debian" in content or "id=arch" in content:
+            if "id=ubuntu" in content or "id=debian" in content or "id=arch" in content or "id_like=arch" in content:
                 return "distrobox"
     return "toolbox"
 
