@@ -32,7 +32,7 @@ Install via `pipx` for an isolated environment:
 # Fedora: sudo dnf install pipx
 # Arch: sudo pacman -S python-pipx
 
-pipx install git+https://github.com/kyuz0/llama-toolboxes-cockpit.git
+pipx install git+https://github.com/dzltron/llama-toolboxes-cockpit.git
 ```
 
 ## Usage
