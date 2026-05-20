@@ -347,6 +347,11 @@ class LlamaCockpitApp(App):
                         classes="options-row"
                     ),
                     Horizontal(
+                        Label("HIP Devices", classes="inline-label"),
+                        Input(placeholder="e.g. 0 (leave empty to unset)", id="inp_hip_devices", value=""),
+                        classes="inline-row"
+                    ),
+                    Horizontal(
                         Label("Extra Args", classes="inline-label"),
                         Input(placeholder="e.g. --batch-size 512", id="inp_custom_args", value="--jinja"),
                         classes="inline-row"
@@ -789,10 +794,11 @@ class LlamaCockpitApp(App):
         use_fa = self.query_one("#chk_fa", Checkbox).value
         use_no_mmap = self.query_one("#chk_no_mmap", Checkbox).value
         custom_args = self.query_one("#inp_custom_args", Input).value
+        hip_devices = self.query_one("#inp_hip_devices", Input).value
 
         if engine and image and model_path and ctx.isdigit():
             ngl_val = int(ngl) if ngl.isdigit() else 999
-            cmd = build_server_cmd(engine, image, model_path, int(ctx), use_fa, use_no_mmap, custom_args, host, port, ngl_val)
+            cmd = build_server_cmd(engine, image, model_path, int(ctx), use_fa, use_no_mmap, custom_args, host, port, ngl_val, hip_devices=hip_devices)
             with self.suspend():
                 print(f"\nStarting server with command:\n{' '.join(cmd)}\n")
                 print("Press Ctrl+C to stop the server and return to the UI.\n")

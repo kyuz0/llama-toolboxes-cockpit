@@ -3,7 +3,7 @@ from .model_manager import resolve_model_path
 
 import shlex
 
-def build_server_cmd(engine: str, image: str, model_path: str, context_size: int, use_fa: bool, use_no_mmap: bool, custom_args: str, host: str = "localhost", port: str = "8080", ngl: int = 999) -> list[str]:
+def build_server_cmd(engine: str, image: str, model_path: str, context_size: int, use_fa: bool, use_no_mmap: bool, custom_args: str, host: str = "localhost", port: str = "8080", ngl: int = 999, hip_devices: str = "") -> list[str]:
     models_dir = os.path.expanduser("~/models")
     
     cmd = [
@@ -15,6 +15,9 @@ def build_server_cmd(engine: str, image: str, model_path: str, context_size: int
         "--security-opt", "seccomp=unconfined"
     ]
     
+    if hip_devices:
+        cmd.extend(["-e", f"HIP_VISIBLE_DEVICES={hip_devices}"])
+        
     # Podman requires these flags to read host volumes without permission issues (SELinux / UID mapping)
     if engine == "podman":
         cmd.extend([
