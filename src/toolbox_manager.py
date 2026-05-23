@@ -57,7 +57,10 @@ def get_installed_toolboxes(registry_match: str, specific_engine: str = None) ->
                             created_raw = parts[3].strip()
                             created = created_raw.split()[0] if created_raw else ""
                         
-                        if registry_match and registry_match in image:
+                        # Normalize by stripping docker.io/ prefix for robust matching
+                        r_norm = registry_match.replace("docker.io/", "") if registry_match else ""
+                        i_norm = image.replace("docker.io/", "")
+                        if r_norm and r_norm in i_norm:
                             toolboxes.append({
                                 "name": name,
                                 "image": image,

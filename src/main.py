@@ -596,10 +596,20 @@ class LlamaCockpitApp(App):
         engine = sel_engine.value
         if not isinstance(engine, str) or not engine: return
         
-        registry = get_platform_registry(self.active_platform_id)
+        platform = get_platform(self.active_platform_id)
+        registry = platform.get("registry", "") if platform else ""
         installed = get_installed_toolboxes(registry, engine)
+        
+        # Get all configured images for the platform from toolboxes.json
+        configured_images = []
+        if platform:
+            for group in platform.get("groups", []):
+                for tb in group.get("toolboxes", []):
+                    tag = tb.get("tag", "latest")
+                    configured_images.append(f"{registry}:{tag}")
+                    
         sel_image = self.query_one("#sel_image", SearchableSelect)
-        images = sorted(set([tb['image'] for tb in installed]))
+        images = sorted(set([tb['image'] for tb in installed] + configured_images))
         sel_image.set_options([(img, img) for img in images])
         if images:
             sel_image.value = images[0]
