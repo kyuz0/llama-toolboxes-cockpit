@@ -23,6 +23,21 @@ def build_server_cmd(engine: str, image: str, model_path: str, context_size: int
                 "--group-add", "render",
                 "--security-opt", "seccomp=unconfined"
             ]
+    else:
+        # Copy to avoid modifying the original list in-place
+        clean_args = []
+        skip_next = False
+        for i in range(len(engine_args)):
+            if skip_next:
+                skip_next = False
+                continue
+            if engine_args[i] == "--group-add" and i + 1 < len(engine_args) and engine_args[i+1] == "sudo":
+                skip_next = True
+                continue
+            if engine_args[i] == "--group-add=sudo":
+                continue
+            clean_args.append(engine_args[i])
+        engine_args = clean_args
 
     cmd = [
         engine, "run", "--rm", "-it"
