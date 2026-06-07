@@ -242,7 +242,7 @@
       "default_np": 1
     },
     "compatible_toolboxes": [
-      "7.2.4-rocmfp4"
+      "rocm-7.2.4-rocmfp4"
     ],
     "inference_profiles": {
       "Strix Lean": {

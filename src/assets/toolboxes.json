@@ -136,8 +136,8 @@
               ]
             },
             {
-              "name": "llama-7.2.4-rocmfp4",
-              "tag": "7.2.4-rocmfp4",
+              "name": "llama-rocm-7.2.4-rocmfp4",
+              "tag": "rocm-7.2.4-rocmfp4",
               "description": "Experimental ROCm FP4 build",
               "engine_args": [
                 "--device",
