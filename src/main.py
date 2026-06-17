@@ -663,7 +663,7 @@ class LlamaCockpitApp(App):
                 
                 desc = tb.get('description', '')
                 if default_tag and default_tag in tb.get('image', ''):
-                    desc = f"[bold #e57373]\\[Default][/bold] {desc}"
+                    desc = f"[bold #e57373](Default)[/] {desc}"
                 
                 sel_fmt = "\\[x]" if tb['name'] in getattr(self, 'selected_toolboxes', set()) else "\\[ ]"
                 table.add_row(sel_fmt, tb['name'], desc, status_fmt, tb.get('created', ''), "")
