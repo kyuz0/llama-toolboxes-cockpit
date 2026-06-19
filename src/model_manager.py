@@ -210,12 +210,6 @@ def get_hf_quants(repo: str) -> list[str]:
 import sys
 
 def get_download_cmd(repo: str, quant_pattern: str) -> list[str]:
-    # Determine the pattern
-    if quant_pattern.endswith(".gguf"):
-        download_pattern = quant_pattern
-    else:
-        download_pattern = f"{quant_pattern}/*"
-        
     final_dir = str(get_models_dir() / repo.split('/')[-1])
     
     # Use the hf executable from the current Python environment
@@ -226,7 +220,17 @@ def get_download_cmd(repo: str, quant_pattern: str) -> list[str]:
     cmd = [
         hf_bin, "download",
         repo,
-        download_pattern,
         "--local-dir", final_dir
     ]
+    
+    if quant_pattern.endswith(".gguf"):
+        # Single file or shard glob: use --include for patterns, positional for exact
+        if "*" in quant_pattern:
+            cmd.extend(["--include", quant_pattern])
+        else:
+            cmd.append(quant_pattern)
+    else:
+        # Folder-based quant (e.g., "BF16", "UD-IQ2_M"): use --include with glob
+        cmd.extend(["--include", f"{quant_pattern}/*"])
+    
     return cmd
