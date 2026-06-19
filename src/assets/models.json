@@ -235,6 +235,28 @@
     }
   },
   {
+    "name": "GLM 5.2",
+    "repo": "unsloth/GLM-5.2-GGUF",
+    "inference_profiles": {
+      "Thinking (General)": {
+        "description": "Z.AI recommended for general thinking/reasoning tasks",
+        "args": "--temp 1.0 --top-p 0.95 --min-p 0.01 --repeat-penalty 1.0"
+      },
+      "Thinking (Coding)": {
+        "description": "Recommended for precise coding tasks",
+        "args": "--temp 0.6 --top-p 0.95 --min-p 0.01 --repeat-penalty 1.0"
+      },
+      "Non-thinking (General)": {
+        "description": "Recommended for general non-thinking chat tasks",
+        "args": "--temp 0.7 --top-p 0.8 --min-p 0.01 --repeat-penalty 1.0"
+      },
+      "Tool Calling": {
+        "description": "Optimized for function/tool-calling",
+        "args": "--temp 0.7 --top-p 1.0 --min-p 0.01 --repeat-penalty 1.0"
+      }
+    }
+  },
+  {
     "name": "GPT OSS 120B",
     "repo": "unsloth/gpt-oss-120b-GGUF"
   },
