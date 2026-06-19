@@ -348,6 +348,27 @@ class LlamaCockpitApp(App):
     .mtp-params-row .short-field {
         margin-right: 2;
     }
+    
+    #kv_cache_options_row {
+        height: auto;
+        max-height: 5;
+        margin-top: 0;
+        display: none;
+    }
+    
+    #kv_cache_options_row .inline-label {
+        width: auto;
+        min-width: 12;
+        text-style: bold;
+        color: #e57373;
+        padding-right: 1;
+        height: 1;
+        content-align: left middle;
+    }
+    
+    #kv_cache_options_row SearchableSelect {
+        width: 1fr;
+    }
     """
 
     def compose(self) -> ComposeResult:
@@ -424,7 +445,13 @@ class LlamaCockpitApp(App):
                     Horizontal(
                         Checkbox("Flash Attention (-fa 1)", id="chk_fa", value=True),
                         Checkbox("No Memory Mapping (--no-mmap)", id="chk_no_mmap", value=True),
+                        Checkbox("KV Cache Quantization", id="chk_kv_cache", value=False),
                         classes="options-row"
+                    ),
+                    Horizontal(
+                        Label("KV Cache Type", classes="inline-label"),
+                        SearchableSelect(prompt="Select KV cache quant type", id="sel_kv_cache_type"),
+                        id="kv_cache_options_row"
                     ),
                     Horizontal(
                         Label("HIP Devices", classes="inline-label", id="lbl_gpu_devices"),
@@ -494,6 +521,17 @@ class LlamaCockpitApp(App):
         sel_engine.set_options([(e, e) for e in engines])
         if engines:
             sel_engine.value = engines[0]
+
+        sel_kv = self.query_one("#sel_kv_cache_type", SearchableSelect)
+        sel_kv.set_options([
+            ("q8_0 (recommended)", "q8_0"),
+            ("q5_1", "q5_1"),
+            ("q5_0", "q5_0"),
+            ("q4_1", "q4_1"),
+            ("q4_0 (aggressive)", "q4_0"),
+            ("iq4_nl", "iq4_nl"),
+        ])
+        sel_kv.value = "q8_0"
 
         curated = load_models()
         sel_dl = self.query_one("#sel_download_model", SearchableSelect)
@@ -797,6 +835,12 @@ class LlamaCockpitApp(App):
             self.query_one("#lbl_profile_desc", Label).update(desc)
         
         self._rebuild_extra_args()
+
+    @on(Checkbox.Changed, "#chk_kv_cache")
+    def on_kv_cache_toggled(self, event: Checkbox.Changed):
+        """Show/hide KV cache type selector when checkbox is toggled."""
+        kv_row = self.query_one("#kv_cache_options_row", Horizontal)
+        kv_row.styles.display = "block" if event.value else "none"
 
     @on(Checkbox.Changed, "#chk_mtp_enable")
     def on_mtp_toggled(self, event: Checkbox.Changed):
@@ -1216,6 +1260,9 @@ class LlamaCockpitApp(App):
                     self.notify(f"Model compatibility error: Only supported on {allowed_str}", severity="error")
                     return
 
+        use_kv_cache = self.query_one("#chk_kv_cache", Checkbox).value
+        kv_cache_type = str(self.query_one("#sel_kv_cache_type", SearchableSelect).value) if use_kv_cache else ""
+
         if engine and image and model_path and ctx.isdigit():
             ngl_val = int(ngl) if ngl.isdigit() else 999
             
@@ -1231,7 +1278,8 @@ class LlamaCockpitApp(App):
                 custom_args, host, port, ngl_val, 
                 hip_devices=hip_devices, 
                 platform_id=self.active_platform_id, 
-                engine_args=engine_args
+                engine_args=engine_args,
+                kv_cache_type=kv_cache_type
             )
             with self.suspend():
                 print(f"\nStarting server with command:\n{' '.join(cmd)}\n")

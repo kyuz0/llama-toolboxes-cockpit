@@ -3,7 +3,7 @@ from .model_manager import resolve_model_path
 
 import shlex
 
-def build_server_cmd(engine: str, image: str, model_path: str, context_size: int, use_fa: bool, use_no_mmap: bool, custom_args: str, host: str = "localhost", port: str = "8080", ngl: int = 999, hip_devices: str = "", platform_id: str = "", engine_args: list[str] = None) -> list[str]:
+def build_server_cmd(engine: str, image: str, model_path: str, context_size: int, use_fa: bool, use_no_mmap: bool, custom_args: str, host: str = "localhost", port: str = "8080", ngl: int = 999, hip_devices: str = "", platform_id: str = "", engine_args: list[str] = None, kv_cache_type: str = "") -> list[str]:
     from .model_manager import get_models_dir
     models_dir = str(get_models_dir())
     
@@ -96,6 +96,9 @@ def build_server_cmd(engine: str, image: str, model_path: str, context_size: int
         
     if use_fa:
         cmd.extend(["-fa", "1"])
+    
+    if kv_cache_type:
+        cmd.extend(["--cache-type-k", kv_cache_type, "--cache-type-v", kv_cache_type])
         
     if custom_args:
         cmd.extend(shlex.split(custom_args))
