@@ -316,5 +316,71 @@
         "args": "--temp 0.7 --top-p 0.9 --top-k 40 -b 512 -ub 512 -ctk q8_0 -ctv q8_0 --spec-draft-n-min 0 --spec-draft-p-min 0.0 --spec-draft-p-split 0.10 --spec-draft-type-k q4_0 --spec-draft-type-v q4_0 --reasoning on -dev ROCm0"
       }
     }
+  },
+  {
+    "name": "Qwen2.5-VL-7B-Instruct",
+    "repo": "ggml-org/Qwen2.5-VL-7B-Instruct-GGUF",
+    "multimodal": true,
+    "inference_profiles": {
+      "Default": {
+        "description": "Vision-language model — supports image input via OpenAI-compatible API",
+        "args": "--temp 0.7 --top-p 0.95 --top-k 20"
+      }
+    }
+  },
+  {
+    "name": "Qwen2.5-VL-3B-Instruct",
+    "repo": "ggml-org/Qwen2.5-VL-3B-Instruct-GGUF",
+    "multimodal": true,
+    "inference_profiles": {
+      "Default": {
+        "description": "Lighter vision-language model — fits easily in 32GB VRAM",
+        "args": "--temp 0.7 --top-p 0.95 --top-k 20"
+      }
+    }
+  },
+  {
+    "name": "InternVL3-8B-Instruct",
+    "repo": "ggml-org/InternVL3-8B-Instruct-GGUF",
+    "multimodal": true,
+    "inference_profiles": {
+      "Default": {
+        "description": "Strong vision-language model from Tencent",
+        "args": "--temp 0.7 --top-p 0.95 --top-k 20"
+      }
+    }
+  },
+  {
+    "name": "Gemma 3-12B-it",
+    "repo": "ggml-org/gemma-3-12b-it-GGUF",
+    "multimodal": true,
+    "inference_profiles": {
+      "Default": {
+        "description": "Google's multimodal Gemma 3 — image + text",
+        "args": "--temp 0.7 --top-p 0.95 --top-k 20"
+      }
+    }
+  },
+  {
+    "name": "SmolVLM2-2.2B-Instruct",
+    "repo": "ggml-org/SmolVLM2-2.2B-Instruct-GGUF",
+    "multimodal": true,
+    "inference_profiles": {
+      "Default": {
+        "description": "Very lightweight vision-language model — fast inference",
+        "args": "--temp 0.7 --top-p 0.95 --top-k 20"
+      }
+    }
+  },
+  {
+    "name": "Qwen3-Omni-30B-A3B-Instruct",
+    "repo": "ggml-org/Qwen3-Omni-30B-A3B-Instruct-GGUF",
+    "multimodal": true,
+    "inference_profiles": {
+      "Default": {
+        "description": "Omni-modal: audio + vision input — 30B total / 3B active",
+        "args": "--temp 0.7 --top-p 0.95 --top-k 20"
+      }
+    }
   }
 ]

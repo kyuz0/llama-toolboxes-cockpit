@@ -458,6 +458,21 @@ class LlamaCockpitApp(App):
                         Input(placeholder="e.g. 0 (leave empty to unset)", id="inp_hip_devices", value=""),
                         classes="inline-row"
                     ),
+                    Vertical(
+                        Label("👁️ Vision / Multimodal", classes="zone-title"),
+                        Horizontal(
+                            Label("mmproj", classes="inline-label"),
+                            Input(placeholder="Path to mmproj.gguf (leave empty for -hf auto)", id="inp_mmproj_path"),
+                            classes="inline-row"
+                        ),
+                        Horizontal(
+                            Button("Browse mmproj", id="btn_browse_mmproj", variant="primary"),
+                            Button("Clear mmproj", id="btn_clear_mmproj"),
+                            classes="options-row"
+                        ),
+                        Static("[dim]Tip: Use -hf flag with multimodal models from ggml-org for auto mmproj download. Or manually specify both model.gguf and mmproj.gguf.[/dim]", id="lbl_vision_hint", margin=(0, 1)),
+                        id="vision_zone", classes="model-zone"
+                    ),
                     Horizontal(
                         Label("Extra Args", classes="inline-label"),
                         Input(placeholder="e.g. --batch-size 512", id="inp_custom_args", value="--jinja"),
@@ -1063,6 +1078,8 @@ class LlamaCockpitApp(App):
             "btn_download": self._handle_download,
             "btn_switch_platform": self._handle_switch_platform,
             "btn_set_default": self._handle_set_default,
+            "btn_browse_mmproj": self._handle_browse_mmproj,
+            "btn_clear_mmproj": self._handle_clear_mmproj,
         }
 
         btn_id = event.button.id
@@ -1222,6 +1239,20 @@ class LlamaCockpitApp(App):
         with self.suspend():
             os.system(f"{cmd} enter {tb['name']}")
 
+    def _handle_clear_mmproj(self):
+        self.query_one("#inp_mmproj_path", Input).value = ""
+        self.notify("mmproj path cleared.")
+
+    def _handle_browse_mmproj(self):
+        from textual.widgets import FilePicker
+        with self.suspend():
+            self.app.push_screen(FilePicker(".", file_filter="*.gguf"), self._on_mmproj_selected)
+
+    def _on_mmproj_selected(self, selected_file: str | None) -> None:
+        if selected_file and isinstance(selected_file, str):
+            self.query_one("#inp_mmproj_path", Input).value = selected_file
+            self.notify(f"mmproj set to {selected_file}")
+
     # ── Server Handler ────────────────────────────────────────────
 
     def _handle_start_server(self):
@@ -1236,6 +1267,7 @@ class LlamaCockpitApp(App):
         use_no_mmap = self.query_one("#chk_no_mmap", Checkbox).value
         custom_args = self.query_one("#inp_custom_args", Input).value
         hip_devices = self.query_one("#inp_hip_devices", Input).value
+        mmproj_path = self.query_one("#inp_mmproj_path", Input).value
 
         # Check compatibility
         is_rocmfp4_image = "rocmfp4" in str(image).lower()
@@ -1279,7 +1311,8 @@ class LlamaCockpitApp(App):
                 hip_devices=hip_devices, 
                 platform_id=self.active_platform_id, 
                 engine_args=engine_args,
-                kv_cache_type=kv_cache_type
+                kv_cache_type=kv_cache_type,
+                mmproj_path=mmproj_path if mmproj_path else None
             )
             with self.suspend():
                 print(f"\nStarting server with command:\n{' '.join(cmd)}\n")

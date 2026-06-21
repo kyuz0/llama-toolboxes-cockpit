@@ -3,7 +3,7 @@ from .model_manager import resolve_model_path
 
 import shlex
 
-def build_server_cmd(engine: str, image: str, model_path: str, context_size: int, use_fa: bool, use_no_mmap: bool, custom_args: str, host: str = "localhost", port: str = "8080", ngl: int = 999, hip_devices: str = "", platform_id: str = "", engine_args: list[str] = None, kv_cache_type: str = "") -> list[str]:
+def build_server_cmd(engine: str, image: str, model_path: str, context_size: int, use_fa: bool, use_no_mmap: bool, custom_args: str, host: str = "localhost", port: str = "8080", ngl: int = 999, hip_devices: str = "", platform_id: str = "", engine_args: list[str] = None, kv_cache_type: str = "", mmproj_path: str = None) -> list[str]:
     from .model_manager import get_models_dir
     models_dir = str(get_models_dir())
     
@@ -90,6 +90,22 @@ def build_server_cmd(engine: str, image: str, model_path: str, context_size: int
         "--host", "0.0.0.0",
         "--port", str(port)
     ])
+    
+    # ── Vision / Multimodal support ────────────────────────────────
+    if mmproj_path:
+        # Resolve mmproj path and mount it into the container
+        actual_mmproj = resolve_model_path(mmproj_path)
+        rel_mmproj = os.path.relpath(actual_mmproj, models_dir)
+        inner_mmproj_path = f"/models/{rel_mmproj}"
+        
+        # Mount parent directory (llama-server needs access to both files)
+        mmproj_parent = os.path.dirname(actual_mmproj)
+        if mmproj_parent and mmproj_parent != models_dir:
+            cmd.extend(["-v", f"{mmproj_parent}:{os.path.dirname(inner_mmproj_path)}:ro"])
+        
+        cmd.extend(["--mmproj", inner_mmproj_path])
+    
+    # ── End vision support ─────────────────────────────────────────
     
     if use_no_mmap:
         cmd.append("--no-mmap")
