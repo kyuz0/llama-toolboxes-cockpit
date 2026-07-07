@@ -1284,7 +1284,24 @@ class LlamaCockpitApp(App):
             with self.suspend():
                 print(f"\nStarting server with command:\n{' '.join(cmd)}\n")
                 print("Press Ctrl+C to stop the server and return to the UI.\n")
-                subprocess.run(cmd)
+                
+                import signal
+                # Clean up any stale container first
+                subprocess.run([engine, "rm", "-f", "llama-cockpit-server"], capture_output=True)
+                
+                old_handler = signal.signal(signal.SIGINT, signal.default_int_handler)
+                try:
+                    proc = subprocess.Popen(cmd)
+                    proc.wait()
+                except KeyboardInterrupt:
+                    # Ignore further Ctrl+C during cleanup to prevent aborting the cleanup
+                    signal.signal(signal.SIGINT, signal.SIG_IGN)
+                    print("\nInterrupt received. Force stopping server (this may take a few seconds)...")
+                    subprocess.run([engine, "rm", "-f", "llama-cockpit-server"], capture_output=True)
+                    proc.kill()
+                    proc.wait()
+                finally:
+                    signal.signal(signal.SIGINT, old_handler)
 
     # ── Toggle Select All ─────────────────────────────────────────
 

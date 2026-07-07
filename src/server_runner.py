@@ -41,7 +41,7 @@ def build_server_cmd(engine: str, image: str, model_path: str, context_size: int
         engine_args = clean_args
 
     cmd = [
-        engine, "run", "--rm", "-it"
+        engine, "run", "--rm", "-it", "--name", "llama-cockpit-server"
     ]
     cmd.extend(engine_args)
     
