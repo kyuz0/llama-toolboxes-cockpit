@@ -1,5 +1,6 @@
 import os
 from .model_manager import resolve_model_path
+from .toolbox_manager import upgrade_groups_for_podman
 
 import shlex
 
@@ -39,6 +40,8 @@ def build_server_cmd(engine: str, image: str, model_path: str, context_size: int
                 continue
             clean_args.append(engine_args[i])
         engine_args = clean_args
+
+    engine_args = upgrade_groups_for_podman(engine, engine_args)
 
     cmd = [
         engine, "run", "--rm", "-it", "--name", "llama-cockpit-server"
