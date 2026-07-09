@@ -1444,10 +1444,10 @@ class LlamaCockpitApp(App):
     def _do_download_quant(self, repo: str, quant: str) -> None:
         cmd = get_download_cmd(repo, quant)
         with self.suspend():
-            print(f"\nRunning: HF_HUB_ENABLE_HF_TRANSFER=1 {' '.join(cmd)}")
+            print(f"\nRunning: HF_XET_HIGH_PERFORMANCE=1 {shlex.join(cmd)}")
             try:
                 env = os.environ.copy()
-                env["HF_HUB_ENABLE_HF_TRANSFER"] = "1"
+                env["HF_XET_HIGH_PERFORMANCE"] = "1"
                 subprocess.run(cmd, env=env, check=True)
                 print("\nDownload Complete!")
             except FileNotFoundError:
