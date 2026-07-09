@@ -4,6 +4,7 @@ from textual import on, events, work
 from textual.widgets import Header, Footer, TabbedContent, TabPane, Button, Static, Label, Input, Checkbox, DataTable, Collapsible
 from textual.containers import Vertical, Horizontal, VerticalScroll
 import os
+import shlex
 import subprocess
 
 from src.toolbox_manager import get_all_toolboxes, get_installed_toolboxes, detect_engines, get_os_toolbox_cmd, get_remote_image_date, create_toolbox, delete_toolbox
@@ -1001,12 +1002,12 @@ class LlamaCockpitApp(App):
             if flag not in override_keys_used:
                 result.append((flag, val))
         
-        # Serialize back
+        # Serialize back (shlex.quote each token to preserve special chars like JSON)
         parts = []
         for flag, val in result:
-            parts.append(flag)
+            parts.append(shlex.quote(flag))
             if val is not None:
-                parts.append(val)
+                parts.append(shlex.quote(val))
         return " ".join(parts)
 
     def refresh_models(self):
@@ -1282,7 +1283,7 @@ class LlamaCockpitApp(App):
                 kv_cache_type=kv_cache_type
             )
             with self.suspend():
-                print(f"\nStarting server with command:\n{' '.join(cmd)}\n")
+                print(f"\nStarting server with command:\n{shlex.join(cmd)}\n")
                 print("Press Ctrl+C to stop the server and return to the UI.\n")
                 
                 import signal
