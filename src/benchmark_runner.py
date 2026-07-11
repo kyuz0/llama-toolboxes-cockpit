@@ -5,6 +5,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
+from .config import get_preferred_benchmark_ubatch
 from .model_manager import resolve_model_path
 
 
@@ -20,8 +21,9 @@ class BenchmarkSettings:
     long_repetitions: int = 3
     long_prefill: int = 2048
     long_generation: int = 32
-    rocm_ubatch: int = 2048
-    vulkan_ubatch: int = 512
+    platform_id: str = ""
+    rocm_ubatch: int | None = None
+    vulkan_ubatch: int | None = None
     extra_args: str = ""
 
 
@@ -86,6 +88,11 @@ def build_benchmark_jobs(
         for toolbox_name in toolbox_names:
             toolbox_part = _safe_filename_part(toolbox_name)
             is_vulkan = "vulkan" in toolbox_name.lower()
+            backend = "vulkan" if is_vulkan else "rocm"
+            override = settings.vulkan_ubatch if is_vulkan else settings.rocm_ubatch
+            ubatch = override or get_preferred_benchmark_ubatch(
+                model_path, settings.platform_id, backend
+            )
 
             for context in settings.contexts:
                 command = _toolbox_prefix(toolbox_command, toolbox_name)
@@ -102,6 +109,9 @@ def build_benchmark_jobs(
                     suffix += "__mmap1"
                 if settings.kv_cache_type:
                     suffix += f"__kv-{_safe_filename_part(settings.kv_cache_type)}"
+                if ubatch:
+                    command.extend(["-ub", str(ubatch)])
+                    suffix += f"__ub{ubatch}"
                 if context is None:
                     command.extend([
                         "-p", settings.prefill,
@@ -109,12 +119,10 @@ def build_benchmark_jobs(
                         "-r", str(settings.standard_repetitions),
                     ])
                 else:
-                    ubatch = settings.vulkan_ubatch if is_vulkan else settings.rocm_ubatch
                     command.extend([
                         "-p", str(settings.long_prefill),
                         "-n", str(settings.long_generation),
                         "-d", str(context),
-                        "-ub", str(ubatch),
                         "-r", str(settings.long_repetitions),
                     ])
                     suffix += f"__longctx{context}"

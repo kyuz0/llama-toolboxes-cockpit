@@ -587,10 +587,10 @@ class LlamaCockpitApp(App):
                                 yield Input(value="2048", id="inp_benchmark_long_prefill")
                                 yield Label("Long-context generation", classes="field-label")
                                 yield Input(value="32", id="inp_benchmark_long_generation")
-                                yield Label("ROCm / Vulkan ubatch", classes="field-label")
+                                yield Label("ROCm / Vulkan ubatch override", classes="field-label")
                                 with Horizontal(classes="inline-row"):
-                                    yield Input(value="2048", id="inp_benchmark_rocm_ubatch")
-                                    yield Input(value="512", id="inp_benchmark_vulkan_ubatch")
+                                    yield Input(placeholder="Auto", id="inp_benchmark_rocm_ubatch")
+                                    yield Input(placeholder="Auto", id="inp_benchmark_vulkan_ubatch")
                         with Horizontal(id="benchmark_options_row"):
                             yield Checkbox("Flash Attention (-fa 1)", id="chk_benchmark_fa", value=True)
                             yield Checkbox("No Memory Mapping (-mmp 0)", id="chk_benchmark_no_mmap", value=True)
@@ -1602,6 +1602,14 @@ class LlamaCockpitApp(App):
                 raise ValueError(f"{label} must be zero or a positive integer.")
             return int(raw)
 
+        def optional_positive_input(widget_id: str, label: str) -> int | None:
+            raw = self.query_one(widget_id, Input).value.strip()
+            if not raw:
+                return None
+            if not raw.isdigit() or int(raw) <= 0:
+                raise ValueError(f"{label} must be blank or a positive integer.")
+            return int(raw)
+
         try:
             settings = BenchmarkSettings(
                 prefill=parse_positive_csv(
@@ -1634,11 +1642,12 @@ class LlamaCockpitApp(App):
                 long_generation=positive_input(
                     "#inp_benchmark_long_generation", "Long-context generation"
                 ),
-                rocm_ubatch=positive_input(
-                    "#inp_benchmark_rocm_ubatch", "ROCm ubatch"
+                platform_id=self.active_platform_id,
+                rocm_ubatch=optional_positive_input(
+                    "#inp_benchmark_rocm_ubatch", "ROCm ubatch override"
                 ),
-                vulkan_ubatch=positive_input(
-                    "#inp_benchmark_vulkan_ubatch", "Vulkan ubatch"
+                vulkan_ubatch=optional_positive_input(
+                    "#inp_benchmark_vulkan_ubatch", "Vulkan ubatch override"
                 ),
                 extra_args=self.query_one("#inp_benchmark_extra_args", Input).value.strip(),
             )

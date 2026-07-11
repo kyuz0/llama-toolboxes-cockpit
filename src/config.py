@@ -99,3 +99,19 @@ def get_mtp_config(model_config: dict) -> dict | None:
     if mtp and mtp.get("supported"):
         return mtp
     return None
+
+
+def get_preferred_benchmark_ubatch(
+    model_path: str, platform_id: str, backend: str
+) -> int | None:
+    """Return a measured, platform-specific ubatch or let llama.cpp choose."""
+    model_config = get_model_config(model_path)
+    if not model_config:
+        return None
+    value = (
+        model_config.get("benchmark", {})
+        .get("preferred_ubatch", {})
+        .get(platform_id, {})
+        .get(backend)
+    )
+    return value if isinstance(value, int) and value > 0 else None

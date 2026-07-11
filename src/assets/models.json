@@ -24,6 +24,11 @@
   {
     "name": "Qwen 3.5 122B A10B",
     "repo": "unsloth/Qwen3.5-122B-A10B-GGUF",
+    "benchmark": {
+      "preferred_ubatch": {
+        "strix-halo": { "rocm": 2048 }
+      }
+    },
     "inference_profiles": {
       "Thinking (General)": {
         "description": "Recommended for general thinking/reasoning tasks",
@@ -68,6 +73,11 @@
   {
     "name": "Qwen 3.6 35B A3B",
     "repo": "unsloth/Qwen3.6-35B-A3B-GGUF",
+    "benchmark": {
+      "preferred_ubatch": {
+        "strix-halo": { "rocm": 2048 }
+      }
+    },
     "inference_profiles": {
       "Thinking (General)": {
         "description": "Recommended for general thinking/reasoning tasks",
@@ -112,6 +122,11 @@
   {
     "name": "Qwen 3.6 27B",
     "repo": "unsloth/Qwen3.6-27B-GGUF",
+    "benchmark": {
+      "preferred_ubatch": {
+        "strix-halo": { "rocm": 256 }
+      }
+    },
     "inference_profiles": {
       "Thinking (General)": {
         "description": "Recommended for general thinking/reasoning tasks",
@@ -134,6 +149,11 @@
   {
     "name": "Qwen 3.6 27B MTP",
     "repo": "unsloth/Qwen3.6-27B-MTP-GGUF",
+    "benchmark": {
+      "preferred_ubatch": {
+        "strix-halo": { "rocm": 256 }
+      }
+    },
     "mtp": {
       "supported": true,
       "default_draft_n": 2,
@@ -161,6 +181,11 @@
   {
     "name": "Qwen 3.6 35B A3B MTP",
     "repo": "unsloth/Qwen3.6-35B-A3B-MTP-GGUF",
+    "benchmark": {
+      "preferred_ubatch": {
+        "strix-halo": { "rocm": 2048 }
+      }
+    },
     "mtp": {
       "supported": true,
       "default_draft_n": 2,
@@ -188,6 +213,11 @@
   {
     "name": "Qwen 3.5 122B A10B MTP",
     "repo": "unsloth/Qwen3.5-122B-A10B-MTP-GGUF",
+    "benchmark": {
+      "preferred_ubatch": {
+        "strix-halo": { "rocm": 2048 }
+      }
+    },
     "mtp": {
       "supported": true,
       "default_draft_n": 2,
@@ -215,6 +245,11 @@
   {
     "name": "Gemma 4 26B A4B IT",
     "repo": "unsloth/gemma-4-26B-A4B-it-GGUF",
+    "benchmark": {
+      "preferred_ubatch": {
+        "strix-halo": { "rocm": 2048 }
+      }
+    },
     "inference_profiles": {
       "Default": {
         "description": "Google recommended sampling parameters",
