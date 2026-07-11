@@ -102,7 +102,6 @@ def build_benchmark_jobs(
                     "-d", depths,
                     "-b", str(settings.prefill),
                     "-r", str(settings.repetitions),
-                    "--delay", str(settings.delay),
                     "-o", "jsonl",
                 ])
 

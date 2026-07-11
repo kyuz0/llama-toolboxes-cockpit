@@ -584,7 +584,7 @@ class LlamaCockpitApp(App):
                                 yield Input(value="128", id="inp_benchmark_generation")
                                 yield Label("Repetitions", classes="field-label")
                                 yield Input(value="3", id="inp_benchmark_repetitions")
-                                yield Label("Cooldown between tests (seconds)", classes="field-label")
+                                yield Label("Cooldown between runs (seconds)", classes="field-label")
                                 yield Input(value="10", id="inp_benchmark_cooldown")
                                 yield Label("Extra llama-bench arguments", classes="field-label")
                                 yield Input(placeholder="Optional", id="inp_benchmark_extra_args")
