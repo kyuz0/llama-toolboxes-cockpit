@@ -7,7 +7,7 @@ import os
 import shlex
 import subprocess
 
-from src.toolbox_manager import get_all_toolboxes, get_installed_toolboxes, detect_engines, get_os_toolbox_cmd, get_remote_image_date, create_toolbox, delete_toolbox
+from src.toolbox_manager import get_all_toolboxes, get_installed_toolboxes, detect_engines, get_os_toolbox_cmd, get_remote_image_date, is_remote_image_newer, create_toolbox, delete_toolbox
 from src.model_manager import scan_local_models, get_hf_quants, get_download_cmd, get_models_dir, save_models_dir, is_quant_downloaded, get_active_platform, save_active_platform, get_default_toolbox, save_default_toolbox
 from src.server_runner import build_server_cmd
 from src.config import load_models, get_platforms, get_platform, get_platform_registry, get_model_config, get_inference_profiles, get_mtp_config
@@ -705,7 +705,7 @@ class LlamaCockpitApp(App):
                     desc = f"[bold #e57373](Default)[/] {desc}"
                 
                 sel_fmt = "\\[x]" if tb['name'] in getattr(self, 'selected_toolboxes', set()) else "\\[ ]"
-                table.add_row(sel_fmt, tb['name'], desc, status_fmt, tb.get('created', ''), "")
+                table.add_row(sel_fmt, tb['name'], desc, status_fmt, tb.get('created', '')[:10], "")
                 
             btn_toggle = Button("Select/Deselect All", id=f"btn_toggle_{table.id}", classes="btn-toggle-all")
             col = Collapsible(Vertical(btn_toggle, table), title=f"{group_name} ({len(toolboxes)})", collapsed=collapsed)
@@ -1144,8 +1144,7 @@ class LlamaCockpitApp(App):
             if remote_date:
                 remote_date_str = remote_date[:10]
                 self.app.call_from_thread(self._update_toolbox_cell, tb['name'], 5, remote_date_str)
-                created_date = self._get_toolbox_cell(tb['name'], 4)
-                if created_date and remote_date_str > created_date:
+                if is_remote_image_newer(remote_date, tb.get('created', '')):
                     self.app.call_from_thread(self._update_toolbox_cell, tb['name'], 3, "[yellow]Needs Update[/yellow]")
         self.app.call_from_thread(self.notify, "Update check complete.", timeout=3)
 
@@ -1177,8 +1176,7 @@ class LlamaCockpitApp(App):
             else:
                 remote_date = get_remote_image_date(tb['image'])
                 if remote_date:
-                    remote_date_str = remote_date[:10]
-                    if tb.get('created') and remote_date_str > tb.get('created', ''):
+                    if is_remote_image_newer(remote_date, tb.get('created', '')):
                         to_update.append(tb)
                     else:
                         already_updated.append(tb)

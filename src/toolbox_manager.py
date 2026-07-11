@@ -3,6 +3,8 @@ import os
 import urllib.request
 import json
 import shutil
+import re
+from datetime import datetime, timezone
 
 def upgrade_groups_for_podman(engine: str, args: list[str]) -> list[str]:
     """When using podman, replace --group-add video/render with --group-add keep-groups.
@@ -91,8 +93,9 @@ def get_installed_toolboxes(registry_match: str, specific_engine: str = None) ->
                         
                         created = ""
                         if len(parts) >= 4:
-                            created_raw = parts[3].strip()
-                            created = created_raw.split()[0] if created_raw else ""
+                            # Keep the complete timestamp for update comparisons. The UI
+                            # truncates it to a date when displaying it.
+                            created = parts[3].strip()
                         
                         # Normalize by stripping docker.io/ prefix for robust matching
                         r_norm = registry_match.replace("docker.io/", "") if registry_match else ""
@@ -195,3 +198,29 @@ def get_remote_image_date(image: str) -> str:
             return data.get("last_updated")
     except Exception:
         return None
+
+def _parse_timestamp(value: str) -> datetime | None:
+    """Parse ISO and container-engine timestamps into timezone-aware datetimes."""
+    if not value:
+        return None
+
+    normalized = value.strip()
+    # Docker/Podman may append a timezone abbreviation after the numeric offset.
+    normalized = re.sub(r"\s+[A-Za-z]{2,5}$", "", normalized)
+    normalized = re.sub(r"([+-]\d{2})(\d{2})$", r"\1:\2", normalized)
+    if normalized.endswith("Z"):
+        normalized = normalized[:-1] + "+00:00"
+
+    try:
+        parsed = datetime.fromisoformat(normalized)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+def is_remote_image_newer(remote_updated: str, container_created: str) -> bool:
+    """Return whether a registry image was updated after a container was created."""
+    remote_time = _parse_timestamp(remote_updated)
+    created_time = _parse_timestamp(container_created)
+    return bool(remote_time and created_time and remote_time > created_time)
