@@ -187,7 +187,7 @@
   },
   {
     "name": "Qwen 3.5 122B A10B MTP",
-    "repo": "wimmmm/Qwen3.5-122B-A10B-GGUF-MTP",
+    "repo": "unsloth/Qwen3.5-122B-A10B-MTP-GGUF",
     "mtp": {
       "supported": true,
       "default_draft_n": 2,
