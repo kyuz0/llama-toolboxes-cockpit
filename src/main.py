@@ -6,6 +6,7 @@ from textual.containers import Vertical, Horizontal, VerticalScroll
 import os
 import shlex
 import subprocess
+import time
 
 from src.toolbox_manager import get_all_toolboxes, get_installed_toolboxes, detect_engines, get_os_toolbox_cmd, get_remote_image_date, is_remote_image_newer, create_toolbox, delete_toolbox
 from src.model_manager import scan_local_models, get_hf_quants, get_download_cmd, get_models_dir, save_models_dir, is_quant_downloaded, get_active_platform, save_active_platform, get_default_toolbox, save_default_toolbox, get_benchmark_results_dir, save_benchmark_results_dir
@@ -577,6 +578,8 @@ class LlamaCockpitApp(App):
                                 yield Input(value="5", id="inp_benchmark_standard_reps")
                                 yield Label("Long-context repetitions", classes="field-label")
                                 yield Input(value="3", id="inp_benchmark_long_reps")
+                                yield Label("Cooldown between runs (seconds)", classes="field-label")
+                                yield Input(value="10", id="inp_benchmark_cooldown")
                                 yield Label("Extra llama-bench arguments", classes="field-label")
                                 yield Input(placeholder="Optional", id="inp_benchmark_extra_args")
                             with Vertical():
@@ -1593,6 +1596,12 @@ class LlamaCockpitApp(App):
                 raise ValueError(f"{label} must be a positive integer.")
             return int(raw)
 
+        def nonnegative_input(widget_id: str, label: str) -> int:
+            raw = self.query_one(widget_id, Input).value.strip()
+            if not raw.isdigit():
+                raise ValueError(f"{label} must be zero or a positive integer.")
+            return int(raw)
+
         try:
             settings = BenchmarkSettings(
                 prefill=parse_positive_csv(
@@ -1636,6 +1645,9 @@ class LlamaCockpitApp(App):
             # Validate quoting in custom arguments before suspending the UI.
             if settings.extra_args:
                 shlex.split(settings.extra_args)
+            cooldown_seconds = nonnegative_input(
+                "#inp_benchmark_cooldown", "Cooldown"
+            )
         except ValueError as exc:
             self.notify(str(exc), severity="error")
             return
@@ -1687,6 +1699,10 @@ class LlamaCockpitApp(App):
                 else:
                     failed += 1
                     print(f"  FAILED: llama-bench exited with code {return_code}\n")
+
+                if index < len(jobs) and status != "skipped" and cooldown_seconds:
+                    print(f"  Cooling down for {cooldown_seconds} seconds before the next run...\n")
+                    time.sleep(cooldown_seconds)
 
             print(
                 f"Benchmark run finished: {completed} completed, "
