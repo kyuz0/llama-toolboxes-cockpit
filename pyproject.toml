@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "llama-cockpit"
-version = "2026.7.11.1032"
+version = "2026.7.11.1122"
 description = "A TUI for managing Llama.cpp toolbox containers and models across AMD GPU platforms."
 authors = [{name = "kyuz0"}]
 readme = "README.md"
