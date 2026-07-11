@@ -21,7 +21,7 @@ Each platform ships its own set of pre-built containers (ROCm + Vulkan backends)
 - **Interactive Toolboxes**: Create, enter, update, or batch-delete Llama.cpp CLI containers via `toolbox` (Fedora/RHEL) or `distrobox` (Ubuntu/Arch). The cockpit auto-detects your OS.
 - **Server Mode**: Launch a Llama.cpp OpenAI-compatible inference server directly from a container image — pick engine, image, model, context size, and extra args from the UI.
 - **RDMA/RoCE**: Detect InfiniBand devices for Strix Halo Toolbx and native Podman/Docker server runs.
-- **Benchmark Mode**: Select installed toolboxes and local GGUF models, configure standard and long-context `llama-bench` runs, and save raw logs to a configurable results folder.
+- **Benchmark Mode**: Build DS4-style prefill and generation curves across configurable context frontiers, saving raw `llama-bench` JSONL and a combined CSV.
 - **Model Manager**: Scan your local `~/models` directory for GGUF files, download curated models from Hugging Face, and manage sharded multi-file models.
 - **Update Checker**: Check Docker Hub for newer image builds and batch-update toolboxes in one action.
 

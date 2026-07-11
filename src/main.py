@@ -11,7 +11,7 @@ import time
 from src.toolbox_manager import get_all_toolboxes, get_installed_toolboxes, detect_engines, get_os_toolbox_cmd, get_remote_image_date, is_remote_image_newer, create_toolbox, delete_toolbox
 from src.model_manager import scan_local_models, get_hf_quants, get_download_cmd, get_models_dir, save_models_dir, is_quant_downloaded, get_active_platform, save_active_platform, get_default_toolbox, save_default_toolbox, get_benchmark_results_dir, save_benchmark_results_dir
 from src.server_runner import build_server_cmd
-from src.benchmark_runner import BenchmarkSettings, build_benchmark_jobs, parse_contexts, parse_positive_csv, run_benchmark_job
+from src.benchmark_runner import BenchmarkSettings, build_benchmark_jobs, run_benchmark_job, write_curve_summary
 from src.config import load_models, get_platforms, get_platform, get_platform_registry, get_model_config, get_inference_profiles, get_mtp_config
 from src.widgets import ConfirmModal, SelectModal, SearchableSelect
 import pyfiglet
@@ -86,6 +86,12 @@ class LlamaCockpitApp(App):
         margin-bottom: 0;
         text-style: bold;
         color: #e57373;
+    }
+
+    .field-help {
+        color: #9e9e9e;
+        height: auto;
+        margin-top: 1;
     }
 
     .inline-row {
@@ -552,7 +558,7 @@ class LlamaCockpitApp(App):
                 )
             with TabPane("Benchmark", id="tab-benchmark"):
                 with VerticalScroll(id="benchmark_view"):
-                    yield Static("Select installed toolboxes and local GGUF models, then run llama-bench sequentially. Raw logs are saved in the results folder.", classes="box")
+                    yield Static("Build DS4-style prefill and generation curves across configurable context frontiers. Raw JSONL and a combined CSV are saved in the results folder.", classes="box")
                     with Horizontal(id="benchmark_selection_row"):
                         with Vertical(classes="model-zone"):
                             yield Label("Toolboxes", classes="zone-title")
@@ -567,30 +573,30 @@ class LlamaCockpitApp(App):
                         yield Label("Benchmark Settings", classes="zone-title")
                         with Horizontal(id="benchmark_settings_grid"):
                             with Vertical():
-                                yield Label("Contexts (default or token counts)", classes="field-label")
-                                yield Input(value="default,32768,65536", id="inp_benchmark_contexts")
-                                yield Label("Standard prefill sizes", classes="field-label")
-                                yield Input(value="512", id="inp_benchmark_prefill")
-                                yield Label("Standard generation sizes", classes="field-label")
-                                yield Input(value="128", id="inp_benchmark_generation")
+                                yield Label("Maximum context frontier", classes="field-label")
+                                yield Input(value="65536", id="inp_benchmark_max_context")
+                                yield Label("Context frontier step", classes="field-label")
+                                yield Input(value="2048", id="inp_benchmark_context_step")
+                                yield Label("Prefill chunk", classes="field-label")
+                                yield Input(value="2048", id="inp_benchmark_prefill")
                             with Vertical():
-                                yield Label("Standard repetitions", classes="field-label")
-                                yield Input(value="5", id="inp_benchmark_standard_reps")
-                                yield Label("Long-context repetitions", classes="field-label")
-                                yield Input(value="3", id="inp_benchmark_long_reps")
-                                yield Label("Cooldown between runs (seconds)", classes="field-label")
+                                yield Label("Generation tokens per frontier", classes="field-label")
+                                yield Input(value="128", id="inp_benchmark_generation")
+                                yield Label("Repetitions", classes="field-label")
+                                yield Input(value="3", id="inp_benchmark_repetitions")
+                                yield Label("Cooldown between tests (seconds)", classes="field-label")
                                 yield Input(value="10", id="inp_benchmark_cooldown")
                                 yield Label("Extra llama-bench arguments", classes="field-label")
                                 yield Input(placeholder="Optional", id="inp_benchmark_extra_args")
                             with Vertical():
-                                yield Label("Long-context prefill", classes="field-label")
-                                yield Input(value="2048", id="inp_benchmark_long_prefill")
-                                yield Label("Long-context generation", classes="field-label")
-                                yield Input(value="32", id="inp_benchmark_long_generation")
                                 yield Label("ROCm / Vulkan ubatch override", classes="field-label")
                                 with Horizontal(classes="inline-row"):
                                     yield Input(placeholder="Auto", id="inp_benchmark_rocm_ubatch")
                                     yield Input(placeholder="Auto", id="inp_benchmark_vulkan_ubatch")
+                                yield Static(
+                                    "Auto uses a measured model/platform value when available; otherwise llama.cpp's default.",
+                                    classes="field-help",
+                                )
                         with Horizontal(id="benchmark_options_row"):
                             yield Checkbox("Flash Attention (-fa 1)", id="chk_benchmark_fa", value=True)
                             yield Checkbox("No Memory Mapping (-mmp 0)", id="chk_benchmark_no_mmap", value=True)
@@ -1614,16 +1620,23 @@ class LlamaCockpitApp(App):
 
         try:
             settings = BenchmarkSettings(
-                prefill=parse_positive_csv(
-                    self.query_one("#inp_benchmark_prefill", Input).value,
-                    "Standard prefill sizes",
+                max_context=positive_input(
+                    "#inp_benchmark_max_context", "Maximum context frontier"
                 ),
-                generation=parse_positive_csv(
-                    self.query_one("#inp_benchmark_generation", Input).value,
-                    "Standard generation sizes",
+                context_step=positive_input(
+                    "#inp_benchmark_context_step", "Context frontier step"
                 ),
-                contexts=parse_contexts(
-                    self.query_one("#inp_benchmark_contexts", Input).value,
+                prefill=positive_input(
+                    "#inp_benchmark_prefill", "Prefill chunk"
+                ),
+                generation=positive_input(
+                    "#inp_benchmark_generation", "Generation tokens"
+                ),
+                repetitions=positive_input(
+                    "#inp_benchmark_repetitions", "Repetitions"
+                ),
+                delay=nonnegative_input(
+                    "#inp_benchmark_cooldown", "Cooldown"
                 ),
                 flash_attention=self.query_one("#chk_benchmark_fa", Checkbox).value,
                 use_mmap=not self.query_one("#chk_benchmark_no_mmap", Checkbox).value,
@@ -1631,18 +1644,6 @@ class LlamaCockpitApp(App):
                     str(self.query_one("#sel_benchmark_kv_cache_type", SearchableSelect).value)
                     if self.query_one("#chk_benchmark_kv_cache", Checkbox).value
                     else ""
-                ),
-                standard_repetitions=positive_input(
-                    "#inp_benchmark_standard_reps", "Standard repetitions"
-                ),
-                long_repetitions=positive_input(
-                    "#inp_benchmark_long_reps", "Long-context repetitions"
-                ),
-                long_prefill=positive_input(
-                    "#inp_benchmark_long_prefill", "Long-context prefill"
-                ),
-                long_generation=positive_input(
-                    "#inp_benchmark_long_generation", "Long-context generation"
                 ),
                 platform_id=self.active_platform_id,
                 rocm_ubatch=optional_positive_input(
@@ -1656,9 +1657,19 @@ class LlamaCockpitApp(App):
             # Validate quoting in custom arguments before suspending the UI.
             if settings.extra_args:
                 shlex.split(settings.extra_args)
-            cooldown_seconds = nonnegative_input(
-                "#inp_benchmark_cooldown", "Cooldown"
-            )
+            # Validate that the configured frontiers land exactly on max context.
+            if settings.context_step < settings.prefill:
+                raise ValueError(
+                    "Context frontier step must be at least the prefill chunk size."
+                )
+            if settings.max_context < settings.context_step:
+                raise ValueError(
+                    "Maximum context must be at least the context frontier step."
+                )
+            if settings.max_context % settings.context_step:
+                raise ValueError(
+                    "Maximum context must be divisible by the context frontier step."
+                )
         except ValueError as exc:
             self.notify(str(exc), severity="error")
             return
@@ -1686,8 +1697,7 @@ class LlamaCockpitApp(App):
             print(f"\nRunning {len(jobs)} llama-bench job(s) sequentially.")
             print(f"Results folder: {get_benchmark_results_dir()}\n")
             for index, job in enumerate(jobs, start=1):
-                context_label = "default" if job.context is None else str(job.context)
-                print(f"[{index}/{len(jobs)}] {job.toolbox_name} | {os.path.basename(job.model_path)} | context {context_label}")
+                print(f"[{index}/{len(jobs)}] {job.toolbox_name} | {os.path.basename(job.model_path)} | {job.series} curve")
                 print(f"  Command: {shlex.join(job.command)}")
                 print(f"  Log: {job.output_path}")
                 try:
@@ -1711,15 +1721,18 @@ class LlamaCockpitApp(App):
                     failed += 1
                     print(f"  FAILED: llama-bench exited with code {return_code}\n")
 
-                if index < len(jobs) and status != "skipped" and cooldown_seconds:
-                    print(f"  Cooling down for {cooldown_seconds} seconds before the next run...\n")
-                    time.sleep(cooldown_seconds)
+                if index < len(jobs) and status != "skipped" and settings.delay:
+                    print(f"  Cooling down for {settings.delay} seconds before the next run...\n")
+                    time.sleep(settings.delay)
 
             print(
                 f"Benchmark run finished: {completed} completed, "
                 f"{failed} failed, {skipped} skipped"
                 f"{' (cancelled)' if cancelled else ''}."
             )
+            summary_path = get_benchmark_results_dir() / "curve_summary.csv"
+            summary_rows = write_curve_summary(jobs, summary_path)
+            print(f"Curve summary: {summary_path} ({summary_rows} rows)")
             try:
                 input("\nPress Enter to return to the cockpit...")
             except EOFError:

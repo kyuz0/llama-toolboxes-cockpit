@@ -1,3 +1,5 @@
+import csv
+import json
 import os
 import re
 import shlex
@@ -11,16 +13,15 @@ from .model_manager import resolve_model_path
 
 @dataclass(frozen=True)
 class BenchmarkSettings:
-    prefill: str
-    generation: str
-    contexts: tuple[int | None, ...]
+    max_context: int = 65536
+    context_step: int = 2048
+    prefill: int = 2048
+    generation: int = 128
+    repetitions: int = 3
+    delay: int = 10
     flash_attention: bool = True
     use_mmap: bool = False
     kv_cache_type: str = ""
-    standard_repetitions: int = 5
-    long_repetitions: int = 3
-    long_prefill: int = 2048
-    long_generation: int = 32
     platform_id: str = ""
     rocm_ubatch: int | None = None
     vulkan_ubatch: int | None = None
@@ -31,34 +32,22 @@ class BenchmarkSettings:
 class BenchmarkJob:
     toolbox_name: str
     model_path: str
-    context: int | None
+    series: str
     command: tuple[str, ...]
     output_path: Path
+    stderr_path: Path
 
 
-def parse_positive_csv(raw: str, field_name: str) -> str:
-    values = [value.strip() for value in raw.split(",") if value.strip()]
-    if not values or any(not value.isdigit() or int(value) <= 0 for value in values):
-        raise ValueError(f"{field_name} must contain positive integers separated by commas.")
-    return ",".join(values)
-
-
-def parse_contexts(raw: str) -> tuple[int | None, ...]:
-    values = [value.strip().lower() for value in raw.split(",") if value.strip()]
-    if not values:
-        raise ValueError("Contexts must include 'default' or at least one positive integer.")
-
-    contexts = []
-    for value in values:
-        if value == "default":
-            context = None
-        elif value.isdigit() and int(value) > 0:
-            context = int(value)
-        else:
-            raise ValueError("Contexts must be 'default' or positive integers separated by commas.")
-        if context not in contexts:
-            contexts.append(context)
-    return tuple(contexts)
+def context_frontiers(settings: BenchmarkSettings) -> tuple[int, ...]:
+    if settings.prefill <= 0 or settings.context_step <= 0:
+        raise ValueError("Prefill and context step must be positive.")
+    if settings.context_step < settings.prefill:
+        raise ValueError("Context step must be at least the prefill chunk size.")
+    if settings.max_context < settings.context_step:
+        raise ValueError("Maximum context must be at least the context step.")
+    if settings.max_context % settings.context_step:
+        raise ValueError("Maximum context must be divisible by the context step.")
+    return tuple(range(settings.context_step, settings.max_context + 1, settings.context_step))
 
 
 def _toolbox_prefix(toolbox_command: str, toolbox_name: str) -> list[str]:
@@ -80,6 +69,9 @@ def build_benchmark_jobs(
 ) -> list[BenchmarkJob]:
     jobs = []
     extra_args = shlex.split(settings.extra_args) if settings.extra_args else []
+    frontiers = context_frontiers(settings)
+    prefill_depths = ",".join(str(frontier - settings.prefill) for frontier in frontiers)
+    generation_depths = ",".join(str(frontier) for frontier in frontiers)
 
     for model_pattern in model_paths:
         model_path = resolve_model_path(model_pattern)
@@ -94,7 +86,10 @@ def build_benchmark_jobs(
                 model_path, settings.platform_id, backend
             )
 
-            for context in settings.contexts:
+            for series, prompt_tokens, generation_tokens, depths in (
+                ("prefill", settings.prefill, 0, prefill_depths),
+                ("generation", 0, settings.generation, generation_depths),
+            ):
                 command = _toolbox_prefix(toolbox_command, toolbox_name)
                 command.extend([
                     "llama-bench",
@@ -102,9 +97,18 @@ def build_benchmark_jobs(
                     "-mmp", "1" if settings.use_mmap else "0",
                     "-m", model_path,
                     "-fa", "1" if settings.flash_attention else "0",
+                    "-p", str(prompt_tokens),
+                    "-n", str(generation_tokens),
+                    "-d", depths,
+                    "-b", str(settings.prefill),
+                    "-r", str(settings.repetitions),
+                    "--delay", str(settings.delay),
+                    "-o", "jsonl",
                 ])
 
-                suffix = "__fa1" if settings.flash_attention else ""
+                suffix = f"__curve-{series}"
+                if settings.flash_attention:
+                    suffix += "__fa1"
                 if settings.use_mmap:
                     suffix += "__mmap1"
                 if settings.kv_cache_type:
@@ -112,20 +116,6 @@ def build_benchmark_jobs(
                 if ubatch:
                     command.extend(["-ub", str(ubatch)])
                     suffix += f"__ub{ubatch}"
-                if context is None:
-                    command.extend([
-                        "-p", settings.prefill,
-                        "-n", settings.generation,
-                        "-r", str(settings.standard_repetitions),
-                    ])
-                else:
-                    command.extend([
-                        "-p", str(settings.long_prefill),
-                        "-n", str(settings.long_generation),
-                        "-d", str(context),
-                        "-r", str(settings.long_repetitions),
-                    ])
-                    suffix += f"__longctx{context}"
 
                 if settings.kv_cache_type:
                     command.extend([
@@ -134,13 +124,14 @@ def build_benchmark_jobs(
                     ])
 
                 command.extend(extra_args)
-                output_path = results_dir / f"{model_name}__{toolbox_part}{suffix}.log"
+                output_path = results_dir / f"{model_name}__{toolbox_part}{suffix}.jsonl"
                 jobs.append(BenchmarkJob(
                     toolbox_name=toolbox_name,
                     model_path=model_path,
-                    context=context,
+                    series=series,
                     command=tuple(command),
                     output_path=output_path,
+                    stderr_path=output_path.with_suffix(".stderr.log"),
                 ))
 
     return jobs
@@ -152,23 +143,78 @@ def run_benchmark_job(job: BenchmarkJob) -> tuple[str, int | None]:
 
     job.output_path.parent.mkdir(parents=True, exist_ok=True)
     try:
-        with open(job.output_path, "w", encoding="utf-8") as output:
+        with (
+            open(job.output_path, "w", encoding="utf-8") as output,
+            open(job.stderr_path, "w", encoding="utf-8") as error_output,
+        ):
             result = subprocess.run(
                 list(job.command),
                 stdout=output,
-                stderr=subprocess.STDOUT,
+                stderr=error_output,
                 text=True,
             )
             if result.returncode != 0:
-                output.write(f"\nBenchmark exited with code {result.returncode}\n")
+                error_output.write(f"\nBenchmark exited with code {result.returncode}\n")
                 return "failed", result.returncode
     except KeyboardInterrupt:
         if job.output_path.exists():
             job.output_path.unlink()
+        if job.stderr_path.exists():
+            job.stderr_path.unlink()
         raise
     except Exception:
         if job.output_path.exists() and job.output_path.stat().st_size == 0:
             job.output_path.unlink()
+        if job.stderr_path.exists() and job.stderr_path.stat().st_size == 0:
+            job.stderr_path.unlink()
         raise
 
     return "completed", 0
+
+
+def write_curve_summary(jobs: list[BenchmarkJob], output_path: Path) -> int:
+    """Combine the selected jobs' llama-bench JSONL into a DS4-like curve CSV."""
+    rows = []
+    for job in jobs:
+        if not job.output_path.is_file():
+            continue
+        with open(job.output_path, "r", encoding="utf-8") as source:
+            for line in source:
+                try:
+                    record = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                depth = int(record.get("n_depth", 0))
+                prompt = int(record.get("n_prompt", 0))
+                frontier = depth + prompt if job.series == "prefill" else depth
+                rows.append({
+                    "model": Path(job.model_path).stem,
+                    "toolbox": job.toolbox_name,
+                    "series": job.series,
+                    "context_frontier": frontier,
+                    "n_depth": depth,
+                    "n_prompt": prompt,
+                    "n_gen": int(record.get("n_gen", 0)),
+                    "n_batch": int(record.get("n_batch", 0)),
+                    "n_ubatch": int(record.get("n_ubatch", 0)),
+                    "avg_ts": float(record.get("avg_ts", 0)),
+                    "stddev_ts": float(record.get("stddev_ts", 0)),
+                    "samples_ts": json.dumps(record.get("samples_ts", [])),
+                    "build_commit": record.get("build_commit", ""),
+                    "gpu_info": record.get("gpu_info", ""),
+                })
+
+    rows.sort(key=lambda row: (
+        row["toolbox"], row["model"], row["series"], row["context_frontier"]
+    ))
+    fields = [
+        "model", "toolbox", "series", "context_frontier", "n_depth",
+        "n_prompt", "n_gen", "n_batch", "n_ubatch", "avg_ts",
+        "stddev_ts", "samples_ts", "build_commit", "gpu_info",
+    ]
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(output_path, "w", newline="", encoding="utf-8") as output:
+        writer = csv.DictWriter(output, fieldnames=fields)
+        writer.writeheader()
+        writer.writerows(rows)
+    return len(rows)
