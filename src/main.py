@@ -556,6 +556,26 @@ class LlamaCockpitApp(App):
                         id="btn_row"
                     )
                 )
+            with TabPane("Model Manager", id="tab-models"):
+                with Vertical(id="model_manager_view"):
+                    # Zone 1: Hugging Face Downloader
+                    with Vertical(id="download_zone", classes="model-zone"):
+                        yield Label("📥 Curated HF Downloader", classes="zone-title")
+                        with Horizontal(classes="inline-row"):
+                            yield Label("Model Repo", classes="inline-label")
+                            yield SearchableSelect(prompt="Search curated models (e.g. Qwen, Gemma)...", id="sel_download_model")
+                            yield Button("Download", id="btn_download", variant="success")
+
+                    # Zone 2: Local Models Library
+                    with Vertical(id="local_zone", classes="model-zone"):
+                        yield Label("📂 Local GGUF Directory", classes="zone-title")
+                        with Horizontal(classes="inline-row"):
+                            yield Label("Storage Path", classes="inline-label")
+                            yield Input(placeholder="e.g. ~/models", id="inp_models_dir", value=str(get_models_dir()))
+                            yield Button("Save Path", id="btn_save_models_path")
+                            yield Button("Scan Local", id="btn_scan_models", variant="primary")
+
+                        yield DataTable(id="local_model_list", cursor_type="row")
             with TabPane("Benchmark", id="tab-benchmark"):
                 with VerticalScroll(id="benchmark_view"):
                     yield Static("Build DS4-style prefill and generation curves across configurable context frontiers. Raw JSONL and a combined CSV are saved in the results folder.", classes="box")
@@ -611,26 +631,6 @@ class LlamaCockpitApp(App):
                             yield Input(value=str(get_benchmark_results_dir()), id="inp_benchmark_results_dir")
                             yield Button("Save Folder", id="btn_save_benchmark_path")
                             yield Button("Run Benchmarks", id="btn_run_benchmarks", variant="primary")
-            with TabPane("Model Manager", id="tab-models"):
-                with Vertical(id="model_manager_view"):
-                    # Zone 1: Hugging Face Downloader
-                    with Vertical(id="download_zone", classes="model-zone"):
-                        yield Label("📥 Curated HF Downloader", classes="zone-title")
-                        with Horizontal(classes="inline-row"):
-                            yield Label("Model Repo", classes="inline-label")
-                            yield SearchableSelect(prompt="Search curated models (e.g. Qwen, Gemma)...", id="sel_download_model")
-                            yield Button("Download", id="btn_download", variant="success")
-                    
-                    # Zone 2: Local Models Library
-                    with Vertical(id="local_zone", classes="model-zone"):
-                        yield Label("📂 Local GGUF Directory", classes="zone-title")
-                        with Horizontal(classes="inline-row"):
-                            yield Label("Storage Path", classes="inline-label")
-                            yield Input(placeholder="e.g. ~/models", id="inp_models_dir", value=str(get_models_dir()))
-                            yield Button("Save Path", id="btn_save_models_path")
-                            yield Button("Scan Local", id="btn_scan_models", variant="primary")
-                        
-                        yield DataTable(id="local_model_list", cursor_type="row")
         yield Footer()
 
     def on_mount(self):
