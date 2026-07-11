@@ -281,6 +281,49 @@ class LlamaCockpitApp(App):
     #inp_benchmark_rocm_ubatch, #inp_benchmark_vulkan_ubatch {
         width: 1fr;
     }
+
+    #benchmark_options_row, #benchmark_kv_cache_row {
+        height: auto;
+        margin-top: 1;
+    }
+
+    #benchmark_options_row Checkbox {
+        margin-right: 4;
+    }
+
+    #benchmark_kv_cache_row {
+        display: none;
+    }
+
+    #benchmark_kv_cache_row .inline-label {
+        width: auto;
+        min-width: 16;
+        color: #e57373;
+        text-style: bold;
+        padding-right: 1;
+    }
+
+    #benchmark_kv_cache_row SearchableSelect {
+        width: 1fr;
+        height: 3;
+    }
+
+    #benchmark_view Input {
+        height: 3;
+        padding: 0 1;
+        background: #2a2a2a;
+        border: tall #333333;
+    }
+
+    #benchmark_view Input:hover {
+        border: tall #e57373;
+    }
+
+    #benchmark_view Input:focus {
+        background: #333333;
+        border: tall #d32f2f;
+        color: #ffffff;
+    }
     
     #model_manager_view {
         height: 1fr;
@@ -545,6 +588,13 @@ class LlamaCockpitApp(App):
                                 with Horizontal(classes="inline-row"):
                                     yield Input(value="2048", id="inp_benchmark_rocm_ubatch")
                                     yield Input(value="512", id="inp_benchmark_vulkan_ubatch")
+                        with Horizontal(id="benchmark_options_row"):
+                            yield Checkbox("Flash Attention (-fa 1)", id="chk_benchmark_fa", value=True)
+                            yield Checkbox("No Memory Mapping (-mmp 0)", id="chk_benchmark_no_mmap", value=True)
+                            yield Checkbox("KV Cache Quantization", id="chk_benchmark_kv_cache", value=False)
+                        with Horizontal(id="benchmark_kv_cache_row"):
+                            yield Label("KV Cache Type", classes="inline-label")
+                            yield SearchableSelect(prompt="Select KV cache quant type", id="sel_benchmark_kv_cache_type")
 
                     with Vertical(classes="model-zone"):
                         yield Label("Results", classes="zone-title")
@@ -618,6 +668,17 @@ class LlamaCockpitApp(App):
             ("iq4_nl", "iq4_nl"),
         ])
         sel_kv.value = "q8_0"
+
+        sel_benchmark_kv = self.query_one("#sel_benchmark_kv_cache_type", SearchableSelect)
+        sel_benchmark_kv.set_options([
+            ("q8_0 (recommended)", "q8_0"),
+            ("q5_1", "q5_1"),
+            ("q5_0", "q5_0"),
+            ("q4_1", "q4_1"),
+            ("q4_0 (aggressive)", "q4_0"),
+            ("iq4_nl", "iq4_nl"),
+        ])
+        sel_benchmark_kv.value = "q8_0"
 
         curated = load_models()
         sel_dl = self.query_one("#sel_download_model", SearchableSelect)
@@ -991,6 +1052,11 @@ class LlamaCockpitApp(App):
     def on_kv_cache_toggled(self, event: Checkbox.Changed):
         """Show/hide KV cache type selector when checkbox is toggled."""
         kv_row = self.query_one("#kv_cache_options_row", Horizontal)
+        kv_row.styles.display = "block" if event.value else "none"
+
+    @on(Checkbox.Changed, "#chk_benchmark_kv_cache")
+    def on_benchmark_kv_cache_toggled(self, event: Checkbox.Changed):
+        kv_row = self.query_one("#benchmark_kv_cache_row", Horizontal)
         kv_row.styles.display = "block" if event.value else "none"
 
     @on(Checkbox.Changed, "#chk_mtp_enable")
@@ -1539,6 +1605,13 @@ class LlamaCockpitApp(App):
                 ),
                 contexts=parse_contexts(
                     self.query_one("#inp_benchmark_contexts", Input).value,
+                ),
+                flash_attention=self.query_one("#chk_benchmark_fa", Checkbox).value,
+                use_mmap=not self.query_one("#chk_benchmark_no_mmap", Checkbox).value,
+                kv_cache_type=(
+                    str(self.query_one("#sel_benchmark_kv_cache_type", SearchableSelect).value)
+                    if self.query_one("#chk_benchmark_kv_cache", Checkbox).value
+                    else ""
                 ),
                 standard_repetitions=positive_input(
                     "#inp_benchmark_standard_reps", "Standard repetitions"

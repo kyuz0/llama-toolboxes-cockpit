@@ -13,6 +13,9 @@ class BenchmarkSettings:
     prefill: str
     generation: str
     contexts: tuple[int | None, ...]
+    flash_attention: bool = True
+    use_mmap: bool = False
+    kv_cache_type: str = ""
     standard_repetitions: int = 5
     long_repetitions: int = 3
     long_prefill: int = 2048
@@ -89,12 +92,16 @@ def build_benchmark_jobs(
                 command.extend([
                     "llama-bench",
                     "-ngl", "99",
-                    "-mmp", "0",
+                    "-mmp", "1" if settings.use_mmap else "0",
                     "-m", model_path,
-                    "-fa", "1",
+                    "-fa", "1" if settings.flash_attention else "0",
                 ])
 
-                suffix = ""
+                suffix = "__fa1" if settings.flash_attention else ""
+                if settings.use_mmap:
+                    suffix += "__mmap1"
+                if settings.kv_cache_type:
+                    suffix += f"__kv-{_safe_filename_part(settings.kv_cache_type)}"
                 if context is None:
                     command.extend([
                         "-p", settings.prefill,
@@ -110,10 +117,16 @@ def build_benchmark_jobs(
                         "-ub", str(ubatch),
                         "-r", str(settings.long_repetitions),
                     ])
-                    suffix = f"__longctx{context}"
+                    suffix += f"__longctx{context}"
+
+                if settings.kv_cache_type:
+                    command.extend([
+                        "--cache-type-k", settings.kv_cache_type,
+                        "--cache-type-v", settings.kv_cache_type,
+                    ])
 
                 command.extend(extra_args)
-                output_path = results_dir / f"{model_name}__{toolbox_part}__fa1{suffix}.log"
+                output_path = results_dir / f"{model_name}__{toolbox_part}{suffix}.log"
                 jobs.append(BenchmarkJob(
                     toolbox_name=toolbox_name,
                     model_path=model_path,
