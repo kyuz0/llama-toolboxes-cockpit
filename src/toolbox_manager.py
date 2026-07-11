@@ -30,6 +30,47 @@ def upgrade_groups_for_podman(engine: str, args: list[str]) -> list[str]:
             i += 1
     return result
 
+def get_toolbox_rdma_args(toolbox_cmd: str, rdma_path: str = "/dev/infiniband") -> list[str]:
+    """Return known-good RDMA flags for Toolbx; leave Distrobox unchanged."""
+    if os.path.basename(toolbox_cmd) != "toolbox" or not os.path.isdir(rdma_path):
+        return []
+    return [
+        "--device", rdma_path,
+        "--group-add", "rdma",
+        "--ulimit", "memlock=-1",
+    ]
+
+def extend_missing_option_pairs(args: list[str], extras: list[str]) -> list[str]:
+    """Append missing flag/value pairs without modifying the input list."""
+    result = list(args)
+    for index in range(0, len(extras), 2):
+        flag, value = extras[index:index + 2]
+        present = any(
+            result[pos] == flag and result[pos + 1] == value
+            for pos in range(len(result) - 1)
+        )
+        if not present:
+            result.extend([flag, value])
+    return result
+
+def build_toolbox_create_cmd(
+    toolbox_cmd: str,
+    engine: str,
+    name: str,
+    image: str,
+    args: list[str],
+    rdma_path: str = "/dev/infiniband",
+) -> list[str]:
+    resolved_args = upgrade_groups_for_podman(engine, args)
+    rdma_args = get_toolbox_rdma_args(toolbox_cmd, rdma_path)
+    resolved_args = extend_missing_option_pairs(resolved_args, rdma_args)
+
+    full_cmd = [toolbox_cmd, "create", name, "--image", image]
+    if resolved_args:
+        full_cmd.append("--")
+        full_cmd.extend(resolved_args)
+    return full_cmd
+
 def detect_engines() -> list[str]:
     engines = []
     if shutil.which("podman"):
@@ -171,11 +212,7 @@ def create_toolbox(name: str, image: str, args: list[str]):
     # Pull first
     subprocess.run([engine, "pull", image], check=True)
     
-    resolved_args = upgrade_groups_for_podman(engine, args)
-    full_cmd = [cmd, "create", name, "--image", image]
-    if resolved_args:
-        full_cmd.append("--")
-        full_cmd.extend(resolved_args)
+    full_cmd = build_toolbox_create_cmd(cmd, engine, name, image, args)
     subprocess.run(full_cmd, check=True)
 
 def delete_toolbox(name: str):

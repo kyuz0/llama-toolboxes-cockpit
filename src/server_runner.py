@@ -1,8 +1,35 @@
 import os
+from pathlib import Path
 from .model_manager import resolve_model_path
-from .toolbox_manager import upgrade_groups_for_podman
+from .toolbox_manager import extend_missing_option_pairs, upgrade_groups_for_podman
 
 import shlex
+
+def get_server_rdma_args(
+    engine: str,
+    platform_id: str,
+    rdma_path: str = "/dev/infiniband",
+) -> list[str]:
+    """Return native container-engine RDMA flags for supported Strix Halo images."""
+    if platform_id != "strix-halo" or not os.path.isdir(rdma_path):
+        return []
+
+    if engine == "podman":
+        return [
+            "--device", rdma_path,
+            "--group-add", "rdma",
+            "--ulimit", "memlock=-1",
+        ]
+
+    if engine == "docker":
+        args = []
+        for device in sorted(Path(rdma_path).iterdir()):
+            args.extend(["--device", str(device)])
+        if args:
+            args.extend(["--ulimit", "memlock=-1"])
+        return args
+
+    return []
 
 def build_server_cmd(engine: str, image: str, model_path: str, context_size: int, use_fa: bool, use_no_mmap: bool, custom_args: str, host: str = "localhost", port: str = "8080", ngl: int = 999, hip_devices: str = "", platform_id: str = "", engine_args: list[str] = None, kv_cache_type: str = "") -> list[str]:
     from .model_manager import get_models_dir
@@ -42,6 +69,8 @@ def build_server_cmd(engine: str, image: str, model_path: str, context_size: int
         engine_args = clean_args
 
     engine_args = upgrade_groups_for_podman(engine, engine_args)
+    rdma_args = get_server_rdma_args(engine, platform_id)
+    engine_args = extend_missing_option_pairs(engine_args, rdma_args)
 
     cmd = [
         engine, "run", "--rm", "-it", "--name", "llama-cockpit-server"
