@@ -7,6 +7,7 @@ from huggingface_hub import HfApi
 from pathlib import Path
 
 CONFIG_FILE = Path(os.path.expanduser("~/.llama-cockpit.conf"))
+DEFAULT_BENCHMARK_RESULTS_DIR = "~/llamacpp_toolboxes_bench_results"
 
 def get_models_dir() -> Path:
     if CONFIG_FILE.exists():
@@ -38,6 +39,38 @@ def save_models_dir(path_str: str) -> bool:
         return True
     except Exception as e:
         print(f"Error saving config: {e}")
+        return False
+
+def get_benchmark_results_dir() -> Path:
+    if CONFIG_FILE.exists():
+        try:
+            with open(CONFIG_FILE, "r") as f:
+                conf = json.load(f)
+                configured = conf.get("benchmark_results_dir")
+                if configured:
+                    return Path(os.path.expanduser(configured))
+        except Exception:
+            pass
+    return Path(os.path.expanduser(DEFAULT_BENCHMARK_RESULTS_DIR))
+
+def save_benchmark_results_dir(path_str: str) -> bool:
+    conf = {}
+    if CONFIG_FILE.exists():
+        try:
+            with open(CONFIG_FILE, "r") as f:
+                conf = json.load(f)
+        except Exception:
+            pass
+
+    conf["benchmark_results_dir"] = path_str
+    try:
+        with open(CONFIG_FILE, "w") as f:
+            json.dump(conf, f, indent=4)
+
+        Path(os.path.expanduser(path_str)).mkdir(parents=True, exist_ok=True)
+        return True
+    except Exception as e:
+        print(f"Error saving benchmark results directory: {e}")
         return False
 
 def get_active_platform() -> str:

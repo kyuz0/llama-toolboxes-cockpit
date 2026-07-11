@@ -8,8 +8,9 @@ import shlex
 import subprocess
 
 from src.toolbox_manager import get_all_toolboxes, get_installed_toolboxes, detect_engines, get_os_toolbox_cmd, get_remote_image_date, is_remote_image_newer, create_toolbox, delete_toolbox
-from src.model_manager import scan_local_models, get_hf_quants, get_download_cmd, get_models_dir, save_models_dir, is_quant_downloaded, get_active_platform, save_active_platform, get_default_toolbox, save_default_toolbox
+from src.model_manager import scan_local_models, get_hf_quants, get_download_cmd, get_models_dir, save_models_dir, is_quant_downloaded, get_active_platform, save_active_platform, get_default_toolbox, save_default_toolbox, get_benchmark_results_dir, save_benchmark_results_dir
 from src.server_runner import build_server_cmd
+from src.benchmark_runner import BenchmarkSettings, build_benchmark_jobs, parse_contexts, parse_positive_csv, run_benchmark_job
 from src.config import load_models, get_platforms, get_platform, get_platform_registry, get_model_config, get_inference_profiles, get_mtp_config
 from src.widgets import ConfirmModal, SelectModal, SearchableSelect
 import pyfiglet
@@ -244,6 +245,42 @@ class LlamaCockpitApp(App):
         border: none;
         height: 1fr;
     }
+
+    #benchmark_toolbox_list, #benchmark_model_list {
+        border: none;
+        height: 10;
+    }
+
+    #benchmark_selection_row {
+        height: auto;
+    }
+
+    #benchmark_selection_row > Vertical {
+        width: 1fr;
+        height: auto;
+    }
+
+    #benchmark_settings_grid {
+        height: auto;
+    }
+
+    #benchmark_settings_grid > Vertical {
+        width: 1fr;
+        height: auto;
+        margin-right: 2;
+    }
+
+    #benchmark_results_row {
+        height: auto;
+    }
+
+    #benchmark_results_row > Input {
+        width: 1fr;
+    }
+
+    #inp_benchmark_rocm_ubatch, #inp_benchmark_vulkan_ubatch {
+        width: 1fr;
+    }
     
     #model_manager_view {
         height: 1fr;
@@ -469,6 +506,52 @@ class LlamaCockpitApp(App):
                         id="btn_row"
                     )
                 )
+            with TabPane("Benchmark", id="tab-benchmark"):
+                with VerticalScroll(id="benchmark_view"):
+                    yield Static("Select installed toolboxes and local GGUF models, then run llama-bench sequentially. Raw logs are saved in the results folder.", classes="box")
+                    with Horizontal(id="benchmark_selection_row"):
+                        with Vertical(classes="model-zone"):
+                            yield Label("Toolboxes", classes="zone-title")
+                            yield Button("Select/Deselect All", id="btn_benchmark_toggle_toolboxes", classes="btn-toggle-all")
+                            yield DataTable(id="benchmark_toolbox_list", cursor_type="row")
+                        with Vertical(classes="model-zone"):
+                            yield Label("Models", classes="zone-title")
+                            yield Button("Select/Deselect All", id="btn_benchmark_toggle_models", classes="btn-toggle-all")
+                            yield DataTable(id="benchmark_model_list", cursor_type="row")
+
+                    with Vertical(classes="model-zone"):
+                        yield Label("Benchmark Settings", classes="zone-title")
+                        with Horizontal(id="benchmark_settings_grid"):
+                            with Vertical():
+                                yield Label("Contexts (default or token counts)", classes="field-label")
+                                yield Input(value="default,32768,65536", id="inp_benchmark_contexts")
+                                yield Label("Standard prefill sizes", classes="field-label")
+                                yield Input(value="512", id="inp_benchmark_prefill")
+                                yield Label("Standard generation sizes", classes="field-label")
+                                yield Input(value="128", id="inp_benchmark_generation")
+                            with Vertical():
+                                yield Label("Standard repetitions", classes="field-label")
+                                yield Input(value="5", id="inp_benchmark_standard_reps")
+                                yield Label("Long-context repetitions", classes="field-label")
+                                yield Input(value="3", id="inp_benchmark_long_reps")
+                                yield Label("Extra llama-bench arguments", classes="field-label")
+                                yield Input(placeholder="Optional", id="inp_benchmark_extra_args")
+                            with Vertical():
+                                yield Label("Long-context prefill", classes="field-label")
+                                yield Input(value="2048", id="inp_benchmark_long_prefill")
+                                yield Label("Long-context generation", classes="field-label")
+                                yield Input(value="32", id="inp_benchmark_long_generation")
+                                yield Label("ROCm / Vulkan ubatch", classes="field-label")
+                                with Horizontal(classes="inline-row"):
+                                    yield Input(value="2048", id="inp_benchmark_rocm_ubatch")
+                                    yield Input(value="512", id="inp_benchmark_vulkan_ubatch")
+
+                    with Vertical(classes="model-zone"):
+                        yield Label("Results", classes="zone-title")
+                        with Horizontal(id="benchmark_results_row"):
+                            yield Input(value=str(get_benchmark_results_dir()), id="inp_benchmark_results_dir")
+                            yield Button("Save Folder", id="btn_save_benchmark_path")
+                            yield Button("Run Benchmarks", id="btn_run_benchmarks", variant="primary")
             with TabPane("Model Manager", id="tab-models"):
                 with Vertical(id="model_manager_view"):
                     # Zone 1: Hugging Face Downloader
@@ -513,6 +596,8 @@ class LlamaCockpitApp(App):
         self._update_platform_label()
         
         self.selected_toolboxes = set()
+        self.selected_benchmark_toolboxes = set()
+        self.selected_benchmark_models = set()
         self.refresh_toolboxes()
         self.refresh_models()
         self.check_app_updates()
@@ -615,6 +700,22 @@ class LlamaCockpitApp(App):
         if event.control.id and event.control.id.startswith("dt_"):
             self._toggle_row_selection(event.control, event.cursor_row)
 
+    @on(DataTable.RowSelected, "#benchmark_toolbox_list")
+    def on_benchmark_toolbox_selected(self, event: DataTable.RowSelected):
+        self._toggle_benchmark_selection(
+            event.control,
+            event.cursor_row,
+            self.selected_benchmark_toolboxes,
+        )
+
+    @on(DataTable.RowSelected, "#benchmark_model_list")
+    def on_benchmark_model_selected(self, event: DataTable.RowSelected):
+        self._toggle_benchmark_selection(
+            event.control,
+            event.cursor_row,
+            self.selected_benchmark_models,
+        )
+
     @on(DataTable.RowHighlighted)
     def on_row_highlighted(self, event: DataTable.RowHighlighted):
         if getattr(self, "_mounting_tables", False):
@@ -666,6 +767,54 @@ class LlamaCockpitApp(App):
         if getattr(self, 'selected_toolboxes', set()) and len(self.selected_toolboxes) == 1:
             return tb_dict.get(list(self.selected_toolboxes)[0])
         return None
+
+    @staticmethod
+    def _toggle_benchmark_selection(dt: DataTable, cursor_row: int, selected: set):
+        try:
+            key = dt.get_cell_at((cursor_row, 1))
+            if key in selected:
+                selected.remove(key)
+                dt.update_cell_at((cursor_row, 0), "\\[ ]")
+            else:
+                selected.add(key)
+                dt.update_cell_at((cursor_row, 0), "\\[x]")
+        except Exception:
+            pass
+
+    def refresh_benchmark_toolboxes(self):
+        try:
+            dt = self.query_one("#benchmark_toolbox_list", DataTable)
+        except Exception:
+            return
+
+        installed = {
+            name: tb for name, tb in getattr(self, "toolboxes_dict", {}).items()
+            if tb.get("status") != "Not Installed"
+        }
+        self.selected_benchmark_toolboxes.intersection_update(installed)
+
+        dt.clear(columns=True)
+        dt.add_columns("Sel", "Toolbox", "Image")
+        for name in sorted(installed):
+            marker = "\\[x]" if name in self.selected_benchmark_toolboxes else "\\[ ]"
+            dt.add_row(marker, name, installed[name].get("image", ""))
+
+    def refresh_benchmark_models(self):
+        try:
+            dt = self.query_one("#benchmark_model_list", DataTable)
+        except Exception:
+            return
+
+        models = getattr(self, "current_models", [])
+        available_paths = {model["path"] for model in models}
+        self.selected_benchmark_models.intersection_update(available_paths)
+
+        dt.clear(columns=True)
+        dt.add_columns("Sel", "Path")
+        for model in models:
+            path = model["path"]
+            marker = "\\[x]" if path in self.selected_benchmark_models else "\\[ ]"
+            dt.add_row(marker, path)
 
     def refresh_toolboxes(self):
         self._mounting_tables = True
@@ -727,6 +876,7 @@ class LlamaCockpitApp(App):
 
             self._mounting_tables = False
             
+        self.refresh_benchmark_toolboxes()
         self.call_next(finish_mounting)
 
 
@@ -1051,6 +1201,8 @@ class LlamaCockpitApp(App):
         else:
             sel_model.value = ""
 
+        self.refresh_benchmark_models()
+
     def on_button_pressed(self, event: Button.Pressed):
         handlers = {
             "btn_refresh": self._handle_refresh,
@@ -1064,6 +1216,10 @@ class LlamaCockpitApp(App):
             "btn_download": self._handle_download,
             "btn_switch_platform": self._handle_switch_platform,
             "btn_set_default": self._handle_set_default,
+            "btn_save_benchmark_path": self._handle_save_benchmark_path,
+            "btn_run_benchmarks": self._handle_run_benchmarks,
+            "btn_benchmark_toggle_toolboxes": self._handle_toggle_benchmark_toolboxes,
+            "btn_benchmark_toggle_models": self._handle_toggle_benchmark_models,
         }
 
         btn_id = event.button.id
@@ -1321,6 +1477,161 @@ class LlamaCockpitApp(App):
             else:
                 self.selected_toolboxes.add(name)
                 dt.update_cell_at((i, 0), "\\[x]")
+
+    @staticmethod
+    def _toggle_all_benchmark_rows(dt: DataTable, selected: set):
+        keys = [dt.get_cell_at((row, 1)) for row in range(dt.row_count)]
+        all_selected = bool(keys) and all(key in selected for key in keys)
+        for row, key in enumerate(keys):
+            if all_selected:
+                selected.discard(key)
+                dt.update_cell_at((row, 0), "\\[ ]")
+            else:
+                selected.add(key)
+                dt.update_cell_at((row, 0), "\\[x]")
+
+    def _handle_toggle_benchmark_toolboxes(self):
+        dt = self.query_one("#benchmark_toolbox_list", DataTable)
+        self._toggle_all_benchmark_rows(dt, self.selected_benchmark_toolboxes)
+
+    def _handle_toggle_benchmark_models(self):
+        dt = self.query_one("#benchmark_model_list", DataTable)
+        self._toggle_all_benchmark_rows(dt, self.selected_benchmark_models)
+
+    def _handle_save_benchmark_path(self):
+        path = self.query_one("#inp_benchmark_results_dir", Input).value.strip()
+        if not path:
+            self.notify("Enter a benchmark results folder.", severity="error")
+            return
+        if save_benchmark_results_dir(path):
+            self.notify(f"Benchmark results folder updated to {path}.")
+        else:
+            self.notify("Failed to save benchmark results folder.", severity="error")
+
+    def _handle_run_benchmarks(self):
+        if not self.selected_benchmark_toolboxes:
+            self.notify("Select at least one installed toolbox.", severity="warning")
+            return
+        if not self.selected_benchmark_models:
+            self.notify("Select at least one model.", severity="warning")
+            return
+
+        results_path = self.query_one("#inp_benchmark_results_dir", Input).value.strip()
+        if not results_path:
+            self.notify("Enter a benchmark results folder.", severity="error")
+            return
+
+        def positive_input(widget_id: str, label: str) -> int:
+            raw = self.query_one(widget_id, Input).value.strip()
+            if not raw.isdigit() or int(raw) <= 0:
+                raise ValueError(f"{label} must be a positive integer.")
+            return int(raw)
+
+        try:
+            settings = BenchmarkSettings(
+                prefill=parse_positive_csv(
+                    self.query_one("#inp_benchmark_prefill", Input).value,
+                    "Standard prefill sizes",
+                ),
+                generation=parse_positive_csv(
+                    self.query_one("#inp_benchmark_generation", Input).value,
+                    "Standard generation sizes",
+                ),
+                contexts=parse_contexts(
+                    self.query_one("#inp_benchmark_contexts", Input).value,
+                ),
+                standard_repetitions=positive_input(
+                    "#inp_benchmark_standard_reps", "Standard repetitions"
+                ),
+                long_repetitions=positive_input(
+                    "#inp_benchmark_long_reps", "Long-context repetitions"
+                ),
+                long_prefill=positive_input(
+                    "#inp_benchmark_long_prefill", "Long-context prefill"
+                ),
+                long_generation=positive_input(
+                    "#inp_benchmark_long_generation", "Long-context generation"
+                ),
+                rocm_ubatch=positive_input(
+                    "#inp_benchmark_rocm_ubatch", "ROCm ubatch"
+                ),
+                vulkan_ubatch=positive_input(
+                    "#inp_benchmark_vulkan_ubatch", "Vulkan ubatch"
+                ),
+                extra_args=self.query_one("#inp_benchmark_extra_args", Input).value.strip(),
+            )
+            # Validate quoting in custom arguments before suspending the UI.
+            if settings.extra_args:
+                shlex.split(settings.extra_args)
+        except ValueError as exc:
+            self.notify(str(exc), severity="error")
+            return
+
+        if not save_benchmark_results_dir(results_path):
+            self.notify("Could not create or save the benchmark results folder.", severity="error")
+            return
+
+        model_paths = [
+            model["path"] for model in getattr(self, "current_models", [])
+            if model["path"] in self.selected_benchmark_models
+        ]
+        toolbox_names = sorted(self.selected_benchmark_toolboxes)
+        jobs = build_benchmark_jobs(
+            get_os_toolbox_cmd(),
+            toolbox_names,
+            model_paths,
+            get_benchmark_results_dir(),
+            settings,
+        )
+
+        completed = failed = skipped = 0
+        cancelled = False
+        with self.suspend():
+            print(f"\nRunning {len(jobs)} llama-bench job(s) sequentially.")
+            print(f"Results folder: {get_benchmark_results_dir()}\n")
+            for index, job in enumerate(jobs, start=1):
+                context_label = "default" if job.context is None else str(job.context)
+                print(f"[{index}/{len(jobs)}] {job.toolbox_name} | {os.path.basename(job.model_path)} | context {context_label}")
+                print(f"  Command: {shlex.join(job.command)}")
+                print(f"  Log: {job.output_path}")
+                try:
+                    status, return_code = run_benchmark_job(job)
+                except KeyboardInterrupt:
+                    cancelled = True
+                    print("\nBenchmark run cancelled by user.")
+                    break
+                except Exception as exc:
+                    failed += 1
+                    print(f"  FAILED: {exc}\n")
+                    continue
+
+                if status == "completed":
+                    completed += 1
+                    print("  OK\n")
+                elif status == "skipped":
+                    skipped += 1
+                    print("  SKIPPED: non-empty log already exists\n")
+                else:
+                    failed += 1
+                    print(f"  FAILED: llama-bench exited with code {return_code}\n")
+
+            print(
+                f"Benchmark run finished: {completed} completed, "
+                f"{failed} failed, {skipped} skipped"
+                f"{' (cancelled)' if cancelled else ''}."
+            )
+            try:
+                input("\nPress Enter to return to the cockpit...")
+            except EOFError:
+                pass
+
+        severity = "warning" if failed or cancelled else "information"
+        self.notify(
+            f"Benchmarks {'cancelled' if cancelled else 'finished'}: "
+            f"{completed} completed, {failed} failed, {skipped} skipped.",
+            severity=severity,
+            timeout=8,
+        )
 
 
 
