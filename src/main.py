@@ -596,7 +596,7 @@ class LlamaCockpitApp(App):
                                 yield Label("Maximum context frontier", classes="field-label")
                                 yield Input(value="65536", id="inp_benchmark_max_context")
                                 yield Label("Context frontier step", classes="field-label")
-                                yield Input(value="2048", id="inp_benchmark_context_step")
+                                yield Input(value="8192", id="inp_benchmark_context_step")
                                 yield Label("Prefill chunk", classes="field-label")
                                 yield Input(value="2048", id="inp_benchmark_prefill")
                             with Vertical():

@@ -14,7 +14,7 @@ from .model_manager import resolve_model_path
 @dataclass(frozen=True)
 class BenchmarkSettings:
     max_context: int = 65536
-    context_step: int = 2048
+    context_step: int = 8192
     prefill: int = 2048
     generation: int = 128
     repetitions: int = 3
