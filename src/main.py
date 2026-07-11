@@ -1506,6 +1506,8 @@ class LlamaCockpitApp(App):
                 kv_cache_type=kv_cache_type
             )
             with self.suspend():
+                if any(str(arg).startswith("/dev/infiniband") for arg in cmd):
+                    print("\n🔎 InfiniBand/RDMA detected — enabling RDMA for native server mode.")
                 print(f"\nStarting server with command:\n{shlex.join(cmd)}\n")
                 print("Press Ctrl+C to stop the server and return to the UI.\n")
                 

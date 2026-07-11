@@ -208,6 +208,12 @@ def create_toolbox(name: str, image: str, args: list[str]):
     cmd = get_os_toolbox_cmd()
     engine = get_toolbox_engine()
     os.environ["DBX_CONTAINER_MANAGER"] = engine
+
+    if os.path.basename(cmd) == "toolbox":
+        if get_toolbox_rdma_args(cmd):
+            print("🔎 InfiniBand/RDMA detected — enabling device access, rdma group, and unlimited memlock.")
+        else:
+            print("ℹ️  No InfiniBand devices detected — RDMA not enabled.")
     
     # Pull first
     subprocess.run([engine, "pull", image], check=True)
