@@ -38,16 +38,14 @@ class BenchmarkJob:
     stderr_path: Path
 
 
-def context_frontiers(settings: BenchmarkSettings) -> tuple[int, ...]:
+def context_depths(settings: BenchmarkSettings) -> tuple[int, ...]:
     if settings.prefill <= 0 or settings.context_step <= 0:
         raise ValueError("Prefill and context step must be positive.")
-    if settings.context_step < settings.prefill:
-        raise ValueError("Context step must be at least the prefill chunk size.")
     if settings.max_context < settings.context_step:
         raise ValueError("Maximum context must be at least the context step.")
     if settings.max_context % settings.context_step:
         raise ValueError("Maximum context must be divisible by the context step.")
-    return tuple(range(settings.context_step, settings.max_context + 1, settings.context_step))
+    return (0, *range(settings.context_step, settings.max_context + 1, settings.context_step))
 
 
 def _toolbox_prefix(toolbox_command: str, toolbox_name: str) -> list[str]:
@@ -69,9 +67,7 @@ def build_benchmark_jobs(
 ) -> list[BenchmarkJob]:
     jobs = []
     extra_args = shlex.split(settings.extra_args) if settings.extra_args else []
-    frontiers = context_frontiers(settings)
-    prefill_depths = ",".join(str(frontier - settings.prefill) for frontier in frontiers)
-    generation_depths = ",".join(str(frontier) for frontier in frontiers)
+    depth_values = ",".join(str(depth) for depth in context_depths(settings))
 
     for model_pattern in model_paths:
         model_path = resolve_model_path(model_pattern)
@@ -87,8 +83,8 @@ def build_benchmark_jobs(
             )
 
             for series, prompt_tokens, generation_tokens, depths in (
-                ("prefill", settings.prefill, 0, prefill_depths),
-                ("generation", 0, settings.generation, generation_depths),
+                ("prefill", settings.prefill, 0, depth_values),
+                ("generation", 0, settings.generation, depth_values),
             ):
                 command = _toolbox_prefix(toolbox_command, toolbox_name)
                 command.extend([
@@ -172,7 +168,7 @@ def run_benchmark_job(job: BenchmarkJob) -> tuple[str, int | None]:
 
 
 def write_curve_summary(jobs: list[BenchmarkJob], output_path: Path) -> int:
-    """Combine the selected jobs' llama-bench JSONL into a DS4-like curve CSV."""
+    """Combine JSONL using unambiguous starting-depth and ending-context fields."""
     rows = []
     for job in jobs:
         if not job.output_path.is_file():
@@ -185,15 +181,15 @@ def write_curve_summary(jobs: list[BenchmarkJob], output_path: Path) -> int:
                     continue
                 depth = int(record.get("n_depth", 0))
                 prompt = int(record.get("n_prompt", 0))
-                frontier = depth + prompt if job.series == "prefill" else depth
+                generated = int(record.get("n_gen", 0))
                 rows.append({
                     "model": Path(job.model_path).stem,
                     "toolbox": job.toolbox_name,
                     "series": job.series,
-                    "context_frontier": frontier,
-                    "n_depth": depth,
+                    "starting_depth": depth,
+                    "ending_context": depth + prompt + generated,
                     "n_prompt": prompt,
-                    "n_gen": int(record.get("n_gen", 0)),
+                    "n_gen": generated,
                     "n_batch": int(record.get("n_batch", 0)),
                     "n_ubatch": int(record.get("n_ubatch", 0)),
                     "avg_ts": float(record.get("avg_ts", 0)),
@@ -204,10 +200,10 @@ def write_curve_summary(jobs: list[BenchmarkJob], output_path: Path) -> int:
                 })
 
     rows.sort(key=lambda row: (
-        row["toolbox"], row["model"], row["series"], row["context_frontier"]
+        row["toolbox"], row["model"], row["series"], row["starting_depth"]
     ))
     fields = [
-        "model", "toolbox", "series", "context_frontier", "n_depth",
+        "model", "toolbox", "series", "starting_depth", "ending_context",
         "n_prompt", "n_gen", "n_batch", "n_ubatch", "avg_ts",
         "stddev_ts", "samples_ts", "build_commit", "gpu_info",
     ]

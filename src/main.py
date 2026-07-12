@@ -578,7 +578,7 @@ class LlamaCockpitApp(App):
                         yield DataTable(id="local_model_list", cursor_type="row")
             with TabPane("Benchmark", id="tab-benchmark"):
                 with VerticalScroll(id="benchmark_view"):
-                    yield Static("Build DS4-style prefill and generation curves across configurable context frontiers. Raw JSONL and a combined CSV are saved in the results folder.", classes="box")
+                    yield Static("Measure fixed prefill and generation workloads at identical starting KV depths. Raw JSONL and a combined CSV are saved in the results folder.", classes="box")
                     with Horizontal(id="benchmark_selection_row"):
                         with Vertical(classes="model-zone"):
                             yield Label("Toolboxes", classes="zone-title")
@@ -593,9 +593,9 @@ class LlamaCockpitApp(App):
                         yield Label("Benchmark Settings", classes="zone-title")
                         with Horizontal(id="benchmark_settings_grid"):
                             with Vertical():
-                                yield Label("Maximum context frontier", classes="field-label")
+                                yield Label("Maximum starting depth", classes="field-label")
                                 yield Input(value="65536", id="inp_benchmark_max_context")
-                                yield Label("Context frontier step", classes="field-label")
+                                yield Label("Starting depth step", classes="field-label")
                                 yield Input(value="8192", id="inp_benchmark_context_step")
                                 yield Label("Prefill chunk", classes="field-label")
                                 yield Input(value="2048", id="inp_benchmark_prefill")
@@ -1621,10 +1621,10 @@ class LlamaCockpitApp(App):
         try:
             settings = BenchmarkSettings(
                 max_context=positive_input(
-                    "#inp_benchmark_max_context", "Maximum context frontier"
+                    "#inp_benchmark_max_context", "Maximum starting depth"
                 ),
                 context_step=positive_input(
-                    "#inp_benchmark_context_step", "Context frontier step"
+                    "#inp_benchmark_context_step", "Starting depth step"
                 ),
                 prefill=positive_input(
                     "#inp_benchmark_prefill", "Prefill chunk"
@@ -1657,18 +1657,13 @@ class LlamaCockpitApp(App):
             # Validate quoting in custom arguments before suspending the UI.
             if settings.extra_args:
                 shlex.split(settings.extra_args)
-            # Validate that the configured frontiers land exactly on max context.
-            if settings.context_step < settings.prefill:
-                raise ValueError(
-                    "Context frontier step must be at least the prefill chunk size."
-                )
             if settings.max_context < settings.context_step:
                 raise ValueError(
-                    "Maximum context must be at least the context frontier step."
+                    "Maximum starting depth must be at least the starting depth step."
                 )
             if settings.max_context % settings.context_step:
                 raise ValueError(
-                    "Maximum context must be divisible by the context frontier step."
+                    "Maximum starting depth must be divisible by the starting depth step."
                 )
         except ValueError as exc:
             self.notify(str(exc), severity="error")
