@@ -75,6 +75,7 @@ def build_server_cmd(
     engine_args: list[str] = None,
     kv_cache_type: str = "",
     detach: bool = False,
+    alias: str | None = None,
 ) -> list[str]:
     from .model_manager import get_models_dir
 
@@ -192,6 +193,9 @@ def build_server_cmd(
 
     if kv_cache_type:
         cmd.extend(["--cache-type-k", kv_cache_type, "--cache-type-v", kv_cache_type])
+
+    if alias is not None:
+        cmd.extend(["--alias", alias])
 
     if custom_args:
         cmd.extend(shlex.split(custom_args))

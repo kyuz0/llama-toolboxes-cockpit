@@ -668,6 +668,15 @@ class LlamaCockpitApp(App):
                         classes="inline-row",
                     ),
                     Horizontal(
+                        Label("Alias", classes="inline-label"),
+                        Input(
+                            placeholder="Optional server alias",
+                            id="inp_alias",
+                            value="",
+                        ),
+                        classes="inline-row",
+                    ),
+                    Horizontal(
                         Checkbox(
                             "Detach (run in background)", id="chk_detach", value=True
                         ),
@@ -1816,6 +1825,7 @@ class LlamaCockpitApp(App):
         use_no_mmap = self.query_one("#chk_no_mmap", Checkbox).value
         custom_args = self.query_one("#inp_custom_args", Input).value
         hip_devices = self.query_one("#inp_hip_devices", Input).value
+        alias = self.query_one("#inp_alias", Input).value.strip()
 
         # Check compatibility
         is_rocmfp4_image = "rocmfp4" in str(image).lower()
@@ -1882,6 +1892,7 @@ class LlamaCockpitApp(App):
                 engine_args=engine_args,
                 kv_cache_type=kv_cache_type,
                 detach=use_detach,
+                alias=alias if alias else None,
             )
 
             subprocess.run(
