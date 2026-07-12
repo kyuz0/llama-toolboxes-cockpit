@@ -9,6 +9,7 @@ from pathlib import Path
 CONFIG_FILE = Path(os.path.expanduser("~/.llama-cockpit.conf"))
 DEFAULT_BENCHMARK_RESULTS_DIR = "~/llamacpp_toolboxes_bench_results"
 
+
 def get_models_dir() -> Path:
     if CONFIG_FILE.exists():
         try:
@@ -20,6 +21,7 @@ def get_models_dir() -> Path:
             pass
     return Path(os.path.expanduser("~/models"))
 
+
 def save_models_dir(path_str: str) -> bool:
     conf = {}
     if CONFIG_FILE.exists():
@@ -28,18 +30,19 @@ def save_models_dir(path_str: str) -> bool:
                 conf = json.load(f)
         except Exception:
             pass
-    
+
     conf["models_dir"] = path_str
     try:
         with open(CONFIG_FILE, "w") as f:
             json.dump(conf, f, indent=4)
-        
+
         new_dir = Path(os.path.expanduser(path_str))
         new_dir.mkdir(parents=True, exist_ok=True)
         return True
     except Exception as e:
         print(f"Error saving config: {e}")
         return False
+
 
 def get_benchmark_results_dir() -> Path:
     if CONFIG_FILE.exists():
@@ -52,6 +55,7 @@ def get_benchmark_results_dir() -> Path:
         except Exception:
             pass
     return Path(os.path.expanduser(DEFAULT_BENCHMARK_RESULTS_DIR))
+
 
 def save_benchmark_results_dir(path_str: str) -> bool:
     conf = {}
@@ -73,6 +77,7 @@ def save_benchmark_results_dir(path_str: str) -> bool:
         print(f"Error saving benchmark results directory: {e}")
         return False
 
+
 def get_active_platform() -> str:
     """Reads the active platform ID from config, defaults to 'strix-halo'."""
     if CONFIG_FILE.exists():
@@ -83,6 +88,7 @@ def get_active_platform() -> str:
         except Exception:
             pass
     return "strix-halo"
+
 
 def save_active_platform(platform_id: str) -> bool:
     """Persists the active platform ID to the config file."""
@@ -103,6 +109,7 @@ def save_active_platform(platform_id: str) -> bool:
         print(f"Error saving config: {e}")
         return False
 
+
 def get_default_toolbox(platform_id: str) -> str | None:
     if CONFIG_FILE.exists():
         try:
@@ -113,6 +120,7 @@ def get_default_toolbox(platform_id: str) -> str | None:
         except Exception:
             pass
     return None
+
 
 def save_default_toolbox(platform_id: str, toolbox_name: str) -> bool:
     conf = {}
@@ -134,54 +142,58 @@ def save_default_toolbox(platform_id: str, toolbox_name: str) -> bool:
         print(f"Error saving config: {e}")
         return False
 
+
 def scan_local_models() -> list[dict]:
     models_dir = get_models_dir()
     if not models_dir.exists():
         return []
-    
+
     found = set()
     for root, dirs, files in os.walk(models_dir):
         for f in files:
             if f.endswith(".gguf"):
                 path = Path(root) / f
                 rel_path = path.relative_to(models_dir)
-                
+
                 # Check for sharded models (-0000X-of-0000Y)
                 if "-000" in f and "-of-000" in f:
-                    grouped_pattern = re.sub(r"-000\d+-of-000\d+\.gguf$", "-*-of-*.gguf", str(rel_path))
+                    grouped_pattern = re.sub(
+                        r"-000\d+-of-000\d+\.gguf$", "-*-of-*.gguf", str(rel_path)
+                    )
                     found.add(grouped_pattern)
                 else:
                     found.add(str(rel_path))
-                    
+
     return [{"name": m, "path": str(models_dir / m)} for m in sorted(list(found))]
+
 
 def is_quant_downloaded(repo: str, quant: str) -> bool:
     models_dir = get_models_dir()
     if not models_dir.exists():
         return False
-        
-    repo_base = repo.split('/')[-1].replace('-GGUF', '').lower()
+
+    repo_base = repo.split("/")[-1].replace("-GGUF", "").lower()
     # Normalized form strips hyphens/underscores for flexible comparison
-    repo_norm = repo_base.replace('-', '').replace('_', '')
-    
+    repo_norm = repo_base.replace("-", "").replace("_", "")
+
     # 1. Exact path match based on standard download dir
-    standard_dir = models_dir / repo.split('/')[-1]
+    standard_dir = models_dir / repo.split("/")[-1]
     if (standard_dir / quant).exists():
         return True
-    
+
     def _dir_matches_repo(dirpath: str) -> bool:
         """Check if a directory path is related to this specific repo."""
         rel = os.path.relpath(dirpath, models_dir).lower()
         for part in rel.split(os.sep):
-            if part == '.':
+            if part == ".":
                 continue
-            part_norm = part.replace('-', '').replace('_', '')
+            part_norm = part.replace("-", "").replace("_", "")
             # Require repo_base to be IN the dir name (not the reverse),
             # so "qwen3635ba3b" won't match a dir for "qwen3635ba3bmtp"
             if repo_norm in part_norm:
                 return True
         return False
-        
+
     # 2. Fuzzy scan across models_dir
     for root, dirs, files in os.walk(models_dir):
         if quant.endswith(".gguf"):
@@ -206,8 +218,9 @@ def is_quant_downloaded(repo: str, quant: str) -> bool:
                             return True
                 except OSError:
                     pass
-                        
+
     return False
+
 
 def resolve_model_path(pattern_path: str) -> str:
     """Resolves a pattern like *-of-*.gguf to the first actual file."""
@@ -216,6 +229,7 @@ def resolve_model_path(pattern_path: str) -> str:
         actual_files.sort()
         return actual_files[0]
     return pattern_path
+
 
 def get_hf_quants(repo: str) -> list[str]:
     api = HfApi()
@@ -227,35 +241,35 @@ def get_hf_quants(repo: str) -> list[str]:
     quants = set()
     for f in files:
         if f.endswith(".gguf"):
-            parts = f.split('/')
+            parts = f.split("/")
             if len(parts) > 1:
                 # It's in a subfolder (e.g., "BF16")
                 quants.add(parts[0])
             else:
                 # Top level file: Check if it's a shard
                 if "-000" in f and "-of-000" in f:
-                    grouped_pattern = re.sub(r"-000\d+-of-000\d+\.gguf$", "-*-of-*.gguf", f)
+                    grouped_pattern = re.sub(
+                        r"-000\d+-of-000\d+\.gguf$", "-*-of-*.gguf", f
+                    )
                     quants.add(grouped_pattern)
                 else:
                     quants.add(f)
     return sorted(list(quants))
 
+
 import sys
 
+
 def get_download_cmd(repo: str, quant_pattern: str) -> list[str]:
-    final_dir = str(get_models_dir() / repo.split('/')[-1])
-    
+    final_dir = str(get_models_dir() / repo.split("/")[-1])
+
     # Use the hf executable from the current Python environment
     hf_bin = os.path.join(os.path.dirname(sys.executable), "hf")
     if not os.path.exists(hf_bin):
-        hf_bin = "hf" # Fallback to PATH if not found
-    
-    cmd = [
-        hf_bin, "download",
-        repo,
-        "--local-dir", final_dir
-    ]
-    
+        hf_bin = "hf"  # Fallback to PATH if not found
+
+    cmd = [hf_bin, "download", repo, "--local-dir", final_dir]
+
     if quant_pattern.endswith(".gguf"):
         # Single file or shard glob: use --include for patterns, positional for exact
         if "*" in quant_pattern:
@@ -265,5 +279,5 @@ def get_download_cmd(repo: str, quant_pattern: str) -> list[str]:
     else:
         # Folder-based quant (e.g., "BF16", "UD-IQ2_M"): use --include with glob
         cmd.extend(["--include", f"{quant_pattern}/*"])
-    
+
     return cmd
