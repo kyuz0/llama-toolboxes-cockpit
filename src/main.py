@@ -842,6 +842,18 @@ class LlamaCockpitApp(App):
                                 id="btn_run_benchmarks",
                                 variant="primary",
                             )
+            with TabPane("Monitor", id="tab-monitor"):
+                yield Vertical(
+                    Static(
+                        "Run system monitoring tools. Requires btop or nvtop to be installed.",
+                        classes="box",
+                    ),
+                    Horizontal(
+                        Button("btop", id="btn_run_btop", variant="primary"),
+                        Button("nvtop", id="btn_run_nvtop", variant="primary"),
+                        id="btn_monitor_row",
+                    ),
+                )
         yield Footer()
 
     def on_mount(self):
@@ -1625,6 +1637,8 @@ class LlamaCockpitApp(App):
             "btn_set_default": self._handle_set_default,
             "btn_save_benchmark_path": self._handle_save_benchmark_path,
             "btn_run_benchmarks": self._handle_run_benchmarks,
+            "btn_run_btop": self._handle_run_btop,
+            "btn_run_nvtop": self._handle_run_nvtop,
             "btn_benchmark_toggle_toolboxes": self._handle_toggle_benchmark_toolboxes,
             "btn_benchmark_toggle_models": self._handle_toggle_benchmark_models,
         }
@@ -1971,6 +1985,26 @@ class LlamaCockpitApp(App):
                 print("\nExiting logs...")
 
         self._update_server_buttons()
+
+    def _handle_run_btop(self):
+        result = subprocess.run(["which", "btop"], capture_output=True)
+        if result.returncode != 0:
+            self.notify("btop is not installed. Install with: sudo apt install btop", severity="error")
+            return
+
+        with self.suspend():
+            import os
+            os.system("btop")
+
+    def _handle_run_nvtop(self):
+        result = subprocess.run(["which", "nvtop"], capture_output=True)
+        if result.returncode != 0:
+            self.notify("nvtop is not installed. Install with: sudo apt install nvtop", severity="error")
+            return
+
+        with self.suspend():
+            import os
+            os.system("nvtop")
 
     # ── Toggle Select All ─────────────────────────────────────────
 
