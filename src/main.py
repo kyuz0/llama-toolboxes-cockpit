@@ -1,24 +1,72 @@
 from textual.app import App, ComposeResult
 from textual.theme import Theme
 from textual import on, events, work
-from textual.widgets import Header, Footer, TabbedContent, TabPane, Button, Static, Label, Input, Checkbox, DataTable, Collapsible
+from textual.widgets import (
+    Header,
+    Footer,
+    TabbedContent,
+    TabPane,
+    Button,
+    Static,
+    Label,
+    Input,
+    Checkbox,
+    DataTable,
+    Collapsible,
+)
 from textual.containers import Vertical, Horizontal, VerticalScroll
 import os
 import shlex
 import subprocess
 import time
 
-from src.toolbox_manager import get_all_toolboxes, get_installed_toolboxes, detect_engines, get_os_toolbox_cmd, get_remote_image_date, is_remote_image_newer, create_toolbox, delete_toolbox
-from src.model_manager import scan_local_models, get_hf_quants, get_download_cmd, get_models_dir, save_models_dir, is_quant_downloaded, get_active_platform, save_active_platform, get_default_toolbox, save_default_toolbox, get_benchmark_results_dir, save_benchmark_results_dir
+from src.toolbox_manager import (
+    get_all_toolboxes,
+    get_installed_toolboxes,
+    detect_engines,
+    get_os_toolbox_cmd,
+    get_remote_image_date,
+    is_remote_image_newer,
+    create_toolbox,
+    delete_toolbox,
+)
+from src.model_manager import (
+    scan_local_models,
+    get_hf_quants,
+    get_download_cmd,
+    get_models_dir,
+    save_models_dir,
+    is_quant_downloaded,
+    get_active_platform,
+    save_active_platform,
+    get_default_toolbox,
+    save_default_toolbox,
+    get_benchmark_results_dir,
+    save_benchmark_results_dir,
+)
 from src.server_runner import build_server_cmd, is_server_running
-from src.benchmark_runner import BenchmarkSettings, build_benchmark_jobs, run_benchmark_job, write_curve_summary
-from src.config import load_models, get_platforms, get_platform, get_platform_registry, get_model_config, get_inference_profiles, get_mtp_config
+from src.benchmark_runner import (
+    BenchmarkSettings,
+    build_benchmark_jobs,
+    run_benchmark_job,
+    write_curve_summary,
+)
+from src.config import (
+    load_models,
+    get_platforms,
+    get_platform,
+    get_platform_registry,
+    get_model_config,
+    get_inference_profiles,
+    get_mtp_config,
+)
 from src.widgets import ConfirmModal, SelectModal, SearchableSelect
 import pyfiglet
 
 import importlib.metadata
 
 SERVER_CONTAINER_NAME = "llama-cockpit-server"
+
 
 def generate_banner() -> str:
     ascii_art = pyfiglet.figlet_format("Llama.cpp Cockpit", font="small")
@@ -27,8 +75,9 @@ def generate_banner() -> str:
         version_str = f"v{version}"
     except Exception:
         version_str = "v?.?.?"
-        
+
     return f"[green]{ascii_art}[/green][dim]{version_str}[/dim]"
+
 
 class LlamaCockpitApp(App):
     TITLE = "Llama.cpp Cockpit"
@@ -467,102 +516,171 @@ class LlamaCockpitApp(App):
         yield Horizontal(
             Label("", id="platform_label"),
             Button("Switch Platform", id="btn_switch_platform"),
-            id="platform_row"
+            id="platform_row",
         )
         with TabbedContent(initial="tab-toolboxes"):
             with TabPane("Interactive Toolboxes", id="tab-toolboxes"):
                 yield Vertical(
-                    Static("Manage and enter llama.cpp toolbox containers. The cockpit auto-detects your OS and selects the correct backend (toolbox on Fedora/RHEL, distrobox on Ubuntu/Arch).", classes="box"),
+                    Static(
+                        "Manage and enter llama.cpp toolbox containers. The cockpit auto-detects your OS and selects the correct backend (toolbox on Fedora/RHEL, distrobox on Ubuntu/Arch).",
+                        classes="box",
+                    ),
                     VerticalScroll(id="toolbox_container"),
                     Horizontal(
                         Button("Enter", id="btn_enter", variant="success"),
-                        Button("Create/Update", id="btn_create_update", variant="warning"),
+                        Button(
+                            "Create/Update", id="btn_create_update", variant="warning"
+                        ),
                         Button("Delete", id="btn_delete", variant="error"),
                         Button("Set Default", id="btn_set_default", variant="primary"),
                         Button("Check Updates", id="btn_check_updates"),
                         Button("Refresh", id="btn_refresh"),
-                        id="btn_row"
-                    )
+                        id="btn_row",
+                    ),
                 )
             with TabPane("Server Mode", id="tab-server"):
                 yield VerticalScroll(
-                    Static("Launch a Llama.cpp inference server directly without entering an interactive environment.", classes="box"),
+                    Static(
+                        "Launch a Llama.cpp inference server directly without entering an interactive environment.",
+                        classes="box",
+                    ),
                     Horizontal(
                         Label("Engine", classes="inline-label"),
-                        SearchableSelect(prompt="Select Container Engine", id="sel_engine"),
-                        classes="inline-row"
+                        SearchableSelect(
+                            prompt="Select Container Engine", id="sel_engine"
+                        ),
+                        classes="inline-row",
                     ),
                     Horizontal(
                         Label("Image", classes="inline-label"),
                         SearchableSelect(prompt="Select Toolbox Image", id="sel_image"),
-                        classes="inline-row"
+                        classes="inline-row",
                     ),
                     Horizontal(
                         Label("Model", classes="inline-label"),
                         SearchableSelect(prompt="Select Local Model", id="sel_model"),
-                        classes="inline-row"
+                        classes="inline-row",
                     ),
                     Vertical(
                         Label("🧪 MTP (Multi-Token Prediction)", classes="zone-title"),
                         Horizontal(
-                            Checkbox("Enable MTP Speculative Decoding", id="chk_mtp_enable", value=True),
-                            classes="options-row"
+                            Checkbox(
+                                "Enable MTP Speculative Decoding",
+                                id="chk_mtp_enable",
+                                value=True,
+                            ),
+                            classes="options-row",
                         ),
                         Horizontal(
-                            Horizontal(Label("Draft Tokens", classes="inline-label"), Input(placeholder="2", id="inp_mtp_draft_n", value="2"), classes="short-field"),
-                            Horizontal(Label("Parallel Seq", classes="inline-label"), Input(placeholder="1", id="inp_mtp_np", value="1"), classes="short-field"),
-                            classes="mtp-params-row"
+                            Horizontal(
+                                Label("Draft Tokens", classes="inline-label"),
+                                Input(placeholder="2", id="inp_mtp_draft_n", value="2"),
+                                classes="short-field",
+                            ),
+                            Horizontal(
+                                Label("Parallel Seq", classes="inline-label"),
+                                Input(placeholder="1", id="inp_mtp_np", value="1"),
+                                classes="short-field",
+                            ),
+                            classes="mtp-params-row",
                         ),
-                        id="mtp_zone", classes="model-zone"
+                        id="mtp_zone",
+                        classes="model-zone",
                     ),
                     Vertical(
                         Label("🎛️ Inference Profile", classes="zone-title"),
                         Horizontal(
                             Label("Profile", classes="inline-label"),
-                            SearchableSelect(prompt="Select inference profile...", id="sel_inference_profile"),
+                            SearchableSelect(
+                                prompt="Select inference profile...",
+                                id="sel_inference_profile",
+                            ),
                             Label("", id="lbl_profile_desc"),
-                            classes="inline-row"
+                            classes="inline-row",
                         ),
-                        id="profile_zone", classes="model-zone"
+                        id="profile_zone",
+                        classes="model-zone",
                     ),
                     Horizontal(
-                        Horizontal(Label("Context", classes="inline-label"), Input(placeholder="126976", id="inp_ctx", value="126976"), classes="short-field"),
-                        Horizontal(Label("NGL", classes="inline-label"), Input(placeholder="999", id="inp_ngl", value="999"), classes="short-field"),
-                        Horizontal(Label("Host", classes="inline-label"), Input(placeholder="localhost", id="inp_host", value="localhost"), classes="short-field"),
-                        Horizontal(Label("Port", classes="inline-label"), Input(placeholder="8080", id="inp_port", value="8080"), classes="short-field"),
-                        classes="inline-row"
+                        Horizontal(
+                            Label("Context", classes="inline-label"),
+                            Input(placeholder="126976", id="inp_ctx", value="126976"),
+                            classes="short-field",
+                        ),
+                        Horizontal(
+                            Label("NGL", classes="inline-label"),
+                            Input(placeholder="999", id="inp_ngl", value="999"),
+                            classes="short-field",
+                        ),
+                        Horizontal(
+                            Label("Host", classes="inline-label"),
+                            Input(
+                                placeholder="localhost",
+                                id="inp_host",
+                                value="localhost",
+                            ),
+                            classes="short-field",
+                        ),
+                        Horizontal(
+                            Label("Port", classes="inline-label"),
+                            Input(placeholder="8080", id="inp_port", value="8080"),
+                            classes="short-field",
+                        ),
+                        classes="inline-row",
                     ),
                     Horizontal(
                         Checkbox("Flash Attention (-fa 1)", id="chk_fa", value=True),
-                        Checkbox("No Memory Mapping (--no-mmap)", id="chk_no_mmap", value=True),
-                        Checkbox("KV Cache Quantization", id="chk_kv_cache", value=False),
-                        classes="options-row"
+                        Checkbox(
+                            "No Memory Mapping (--no-mmap)",
+                            id="chk_no_mmap",
+                            value=True,
+                        ),
+                        Checkbox(
+                            "KV Cache Quantization", id="chk_kv_cache", value=False
+                        ),
+                        classes="options-row",
                     ),
                     Horizontal(
                         Label("KV Cache Type", classes="inline-label"),
-                        SearchableSelect(prompt="Select KV cache quant type", id="sel_kv_cache_type"),
-                        id="kv_cache_options_row"
+                        SearchableSelect(
+                            prompt="Select KV cache quant type", id="sel_kv_cache_type"
+                        ),
+                        id="kv_cache_options_row",
                     ),
                     Horizontal(
-                        Label("HIP Devices", classes="inline-label", id="lbl_gpu_devices"),
-                        Input(placeholder="e.g. 0 (leave empty to unset)", id="inp_hip_devices", value=""),
-                        classes="inline-row"
+                        Label(
+                            "HIP Devices", classes="inline-label", id="lbl_gpu_devices"
+                        ),
+                        Input(
+                            placeholder="e.g. 0 (leave empty to unset)",
+                            id="inp_hip_devices",
+                            value="",
+                        ),
+                        classes="inline-row",
                     ),
                     Horizontal(
                         Label("Extra Args", classes="inline-label"),
-                        Input(placeholder="e.g. --batch-size 512", id="inp_custom_args", value="--jinja"),
-                        classes="inline-row"
+                        Input(
+                            placeholder="e.g. --batch-size 512",
+                            id="inp_custom_args",
+                            value="--jinja",
+                        ),
+                        classes="inline-row",
                     ),
                     Horizontal(
-                        Checkbox("Detach (run in background)", id="chk_detach", value=True),
-                        classes="options-row"
+                        Checkbox(
+                            "Detach (run in background)", id="chk_detach", value=True
+                        ),
+                        classes="options-row",
                     ),
                     Horizontal(
-                        Button("Start Server", id="btn_start_server", variant="primary"),
+                        Button(
+                            "Start Server", id="btn_start_server", variant="primary"
+                        ),
                         Button("Stop Server", id="btn_stop_server", variant="error"),
                         Button("Logs", id="btn_server_logs"),
-                        id="btn_row"
-                    )
+                        id="btn_row",
+                    ),
                 )
             with TabPane("Model Manager", id="tab-models"):
                 with Vertical(id="model_manager_view"):
@@ -571,74 +689,150 @@ class LlamaCockpitApp(App):
                         yield Label("📥 Curated HF Downloader", classes="zone-title")
                         with Horizontal(classes="inline-row"):
                             yield Label("Model Repo", classes="inline-label")
-                            yield SearchableSelect(prompt="Search curated models (e.g. Qwen, Gemma)...", id="sel_download_model")
-                            yield Button("Download", id="btn_download", variant="success")
+                            yield SearchableSelect(
+                                prompt="Search curated models (e.g. Qwen, Gemma)...",
+                                id="sel_download_model",
+                            )
+                            yield Button(
+                                "Download", id="btn_download", variant="success"
+                            )
 
                     # Zone 2: Local Models Library
                     with Vertical(id="local_zone", classes="model-zone"):
                         yield Label("📂 Local GGUF Directory", classes="zone-title")
                         with Horizontal(classes="inline-row"):
                             yield Label("Storage Path", classes="inline-label")
-                            yield Input(placeholder="e.g. ~/models", id="inp_models_dir", value=str(get_models_dir()))
+                            yield Input(
+                                placeholder="e.g. ~/models",
+                                id="inp_models_dir",
+                                value=str(get_models_dir()),
+                            )
                             yield Button("Save Path", id="btn_save_models_path")
-                            yield Button("Scan Local", id="btn_scan_models", variant="primary")
+                            yield Button(
+                                "Scan Local", id="btn_scan_models", variant="primary"
+                            )
 
                         yield DataTable(id="local_model_list", cursor_type="row")
             with TabPane("Benchmark", id="tab-benchmark"):
                 with VerticalScroll(id="benchmark_view"):
-                    yield Static("Measure fixed prefill and generation workloads at identical starting KV depths. Raw JSONL and a combined CSV are saved in the results folder.", classes="box")
+                    yield Static(
+                        "Measure fixed prefill and generation workloads at identical starting KV depths. Raw JSONL and a combined CSV are saved in the results folder.",
+                        classes="box",
+                    )
                     with Horizontal(id="benchmark_selection_row"):
                         with Vertical(classes="model-zone"):
                             yield Label("Toolboxes", classes="zone-title")
-                            yield Button("Select/Deselect All", id="btn_benchmark_toggle_toolboxes", classes="btn-toggle-all")
-                            yield DataTable(id="benchmark_toolbox_list", cursor_type="row")
+                            yield Button(
+                                "Select/Deselect All",
+                                id="btn_benchmark_toggle_toolboxes",
+                                classes="btn-toggle-all",
+                            )
+                            yield DataTable(
+                                id="benchmark_toolbox_list", cursor_type="row"
+                            )
                         with Vertical(classes="model-zone"):
                             yield Label("Models", classes="zone-title")
-                            yield Button("Select/Deselect All", id="btn_benchmark_toggle_models", classes="btn-toggle-all")
-                            yield DataTable(id="benchmark_model_list", cursor_type="row")
+                            yield Button(
+                                "Select/Deselect All",
+                                id="btn_benchmark_toggle_models",
+                                classes="btn-toggle-all",
+                            )
+                            yield DataTable(
+                                id="benchmark_model_list", cursor_type="row"
+                            )
 
                     with Vertical(classes="model-zone"):
                         yield Label("Benchmark Settings", classes="zone-title")
                         with Horizontal(id="benchmark_settings_grid"):
                             with Vertical():
-                                yield Label("Maximum starting depth", classes="field-label")
-                                yield Input(value="65536", id="inp_benchmark_max_context")
-                                yield Label("Starting depth step", classes="field-label")
-                                yield Input(value="8192", id="inp_benchmark_context_step")
+                                yield Label(
+                                    "Maximum starting depth", classes="field-label"
+                                )
+                                yield Input(
+                                    value="65536", id="inp_benchmark_max_context"
+                                )
+                                yield Label(
+                                    "Starting depth step", classes="field-label"
+                                )
+                                yield Input(
+                                    value="8192", id="inp_benchmark_context_step"
+                                )
                                 yield Label("Prefill chunk", classes="field-label")
                                 yield Input(value="2048", id="inp_benchmark_prefill")
                             with Vertical():
-                                yield Label("Generation tokens per frontier", classes="field-label")
+                                yield Label(
+                                    "Generation tokens per frontier",
+                                    classes="field-label",
+                                )
                                 yield Input(value="128", id="inp_benchmark_generation")
                                 yield Label("Repetitions", classes="field-label")
                                 yield Input(value="3", id="inp_benchmark_repetitions")
-                                yield Label("Cooldown between runs (seconds)", classes="field-label")
+                                yield Label(
+                                    "Cooldown between runs (seconds)",
+                                    classes="field-label",
+                                )
                                 yield Input(value="10", id="inp_benchmark_cooldown")
-                                yield Label("Extra llama-bench arguments", classes="field-label")
-                                yield Input(placeholder="Optional", id="inp_benchmark_extra_args")
+                                yield Label(
+                                    "Extra llama-bench arguments", classes="field-label"
+                                )
+                                yield Input(
+                                    placeholder="Optional",
+                                    id="inp_benchmark_extra_args",
+                                )
                             with Vertical():
-                                yield Label("ROCm / Vulkan ubatch override", classes="field-label")
+                                yield Label(
+                                    "ROCm / Vulkan ubatch override",
+                                    classes="field-label",
+                                )
                                 with Horizontal(classes="inline-row"):
-                                    yield Input(placeholder="Auto", id="inp_benchmark_rocm_ubatch")
-                                    yield Input(placeholder="Auto", id="inp_benchmark_vulkan_ubatch")
+                                    yield Input(
+                                        placeholder="Auto",
+                                        id="inp_benchmark_rocm_ubatch",
+                                    )
+                                    yield Input(
+                                        placeholder="Auto",
+                                        id="inp_benchmark_vulkan_ubatch",
+                                    )
                                 yield Static(
                                     "Auto uses a measured model/platform value when available; otherwise llama.cpp's default.",
                                     classes="field-help",
                                 )
                         with Horizontal(id="benchmark_options_row"):
-                            yield Checkbox("Flash Attention (-fa 1)", id="chk_benchmark_fa", value=True)
-                            yield Checkbox("No Memory Mapping (-mmp 0)", id="chk_benchmark_no_mmap", value=True)
-                            yield Checkbox("KV Cache Quantization", id="chk_benchmark_kv_cache", value=False)
+                            yield Checkbox(
+                                "Flash Attention (-fa 1)",
+                                id="chk_benchmark_fa",
+                                value=True,
+                            )
+                            yield Checkbox(
+                                "No Memory Mapping (-mmp 0)",
+                                id="chk_benchmark_no_mmap",
+                                value=True,
+                            )
+                            yield Checkbox(
+                                "KV Cache Quantization",
+                                id="chk_benchmark_kv_cache",
+                                value=False,
+                            )
                         with Horizontal(id="benchmark_kv_cache_row"):
                             yield Label("KV Cache Type", classes="inline-label")
-                            yield SearchableSelect(prompt="Select KV cache quant type", id="sel_benchmark_kv_cache_type")
+                            yield SearchableSelect(
+                                prompt="Select KV cache quant type",
+                                id="sel_benchmark_kv_cache_type",
+                            )
 
                     with Vertical(classes="model-zone"):
                         yield Label("Results", classes="zone-title")
                         with Horizontal(id="benchmark_results_row"):
-                            yield Input(value=str(get_benchmark_results_dir()), id="inp_benchmark_results_dir")
+                            yield Input(
+                                value=str(get_benchmark_results_dir()),
+                                id="inp_benchmark_results_dir",
+                            )
                             yield Button("Save Folder", id="btn_save_benchmark_path")
-                            yield Button("Run Benchmarks", id="btn_run_benchmarks", variant="primary")
+                            yield Button(
+                                "Run Benchmarks",
+                                id="btn_run_benchmarks",
+                                variant="primary",
+                            )
         yield Footer()
 
     def on_mount(self):
@@ -658,10 +852,10 @@ class LlamaCockpitApp(App):
         )
         self.register_theme(cockpit_theme)
         self.theme = "cockpit-red"
-        
+
         self.active_platform_id = get_active_platform()
         self._update_platform_label()
-        
+
         self.selected_toolboxes = set()
         self.selected_benchmark_toolboxes = set()
         self.selected_benchmark_models = set()
@@ -670,7 +864,7 @@ class LlamaCockpitApp(App):
         self.check_app_updates()
         self._update_server_buttons()
         self.set_interval(1, self._update_server_buttons)
-        
+
         engines = detect_engines()
         sel_engine = self.query_one("#sel_engine", SearchableSelect)
         sel_engine.set_options([(e, e) for e in engines])
@@ -678,25 +872,31 @@ class LlamaCockpitApp(App):
             sel_engine.value = engines[0]
 
         sel_kv = self.query_one("#sel_kv_cache_type", SearchableSelect)
-        sel_kv.set_options([
-            ("q8_0 (recommended)", "q8_0"),
-            ("q5_1", "q5_1"),
-            ("q5_0", "q5_0"),
-            ("q4_1", "q4_1"),
-            ("q4_0 (aggressive)", "q4_0"),
-            ("iq4_nl", "iq4_nl"),
-        ])
+        sel_kv.set_options(
+            [
+                ("q8_0 (recommended)", "q8_0"),
+                ("q5_1", "q5_1"),
+                ("q5_0", "q5_0"),
+                ("q4_1", "q4_1"),
+                ("q4_0 (aggressive)", "q4_0"),
+                ("iq4_nl", "iq4_nl"),
+            ]
+        )
         sel_kv.value = "q8_0"
 
-        sel_benchmark_kv = self.query_one("#sel_benchmark_kv_cache_type", SearchableSelect)
-        sel_benchmark_kv.set_options([
-            ("q8_0 (recommended)", "q8_0"),
-            ("q5_1", "q5_1"),
-            ("q5_0", "q5_0"),
-            ("q4_1", "q4_1"),
-            ("q4_0 (aggressive)", "q4_0"),
-            ("iq4_nl", "iq4_nl"),
-        ])
+        sel_benchmark_kv = self.query_one(
+            "#sel_benchmark_kv_cache_type", SearchableSelect
+        )
+        sel_benchmark_kv.set_options(
+            [
+                ("q8_0 (recommended)", "q8_0"),
+                ("q5_1", "q5_1"),
+                ("q5_0", "q5_0"),
+                ("q4_1", "q4_1"),
+                ("q4_0 (aggressive)", "q4_0"),
+                ("iq4_nl", "iq4_nl"),
+            ]
+        )
         sel_benchmark_kv.value = "q8_0"
 
         curated = load_models()
@@ -717,22 +917,35 @@ class LlamaCockpitApp(App):
         import urllib.request
         import json
         import importlib.metadata
+
         try:
             current_version = importlib.metadata.version("llama-cockpit")
-            req = urllib.request.Request("https://api.github.com/repos/kyuz0/llama-toolboxes-cockpit/tags")
-            req.add_header('User-Agent', 'Llama-Cockpit-Update-Checker')
+            req = urllib.request.Request(
+                "https://api.github.com/repos/kyuz0/llama-toolboxes-cockpit/tags"
+            )
+            req.add_header("User-Agent", "Llama-Cockpit-Update-Checker")
             with urllib.request.urlopen(req, timeout=3) as response:
                 data = json.loads(response.read().decode())
                 if data:
-                    latest_tag = data[0]['name']
-                    latest_version = latest_tag.lstrip('v')
-                    
-                    curr_parts = tuple(int(x) for x in current_version.split('.') if x.isdigit())
-                    latest_parts = tuple(int(x) for x in latest_version.split('.') if x.isdigit())
-                    
+                    latest_tag = data[0]["name"]
+                    latest_version = latest_tag.lstrip("v")
+
+                    curr_parts = tuple(
+                        int(x) for x in current_version.split(".") if x.isdigit()
+                    )
+                    latest_parts = tuple(
+                        int(x) for x in latest_version.split(".") if x.isdigit()
+                    )
+
                     if latest_parts > curr_parts:
                         msg = f"Update available: v{latest_version} (Current: v{current_version}).\nRun `pipx upgrade llama-cockpit` to update."
-                        self.app.call_from_thread(self.notify, msg, title="Cockpit Update Available", severity="information", timeout=15)
+                        self.app.call_from_thread(
+                            self.notify,
+                            msg,
+                            title="Cockpit Update Available",
+                            severity="information",
+                            timeout=15,
+                        )
         except Exception:
             pass
 
@@ -762,9 +975,13 @@ class LlamaCockpitApp(App):
         if platform:
             name = platform.get("name", self.active_platform_id)
             desc = platform.get("description", "")
-            self.query_one("#platform_label", Label).update(f"Platform: {name}  —  {desc}")
+            self.query_one("#platform_label", Label).update(
+                f"Platform: {name}  —  {desc}"
+            )
         else:
-            self.query_one("#platform_label", Label).update(f"Platform: {self.active_platform_id}")
+            self.query_one("#platform_label", Label).update(
+                f"Platform: {self.active_platform_id}"
+            )
 
         try:
             lbl_gpu = self.query_one("#lbl_gpu_devices", Label)
@@ -792,8 +1009,13 @@ class LlamaCockpitApp(App):
 
     @on(events.MouseUp)
     def on_mouse_up(self, event: events.MouseUp):
-        if isinstance(event.control, DataTable) and event.control.id and event.control.id.startswith("dt_"):
+        if (
+            isinstance(event.control, DataTable)
+            and event.control.id
+            and event.control.id.startswith("dt_")
+        ):
             import time
+
             self._last_dt_click_time = time.time()
 
     @on(DataTable.RowSelected)
@@ -821,16 +1043,17 @@ class LlamaCockpitApp(App):
     def on_row_highlighted(self, event: DataTable.RowHighlighted):
         if getattr(self, "_mounting_tables", False):
             return
-            
+
         if event.control.id and event.control.id.startswith("dt_"):
             import time
+
             if time.time() - getattr(self, "_last_dt_click_time", 0.0) < 0.1:
                 self._toggle_row_selection(event.control, event.cursor_row)
-                
+
             try:
                 name = event.control.get_cell_at((event.cursor_row, 1))
                 self.active_toolbox_name = name
-                
+
                 for dt in self.query(DataTable):
                     if dt.id and dt.id.startswith("dt_"):
                         if dt == event.control:
@@ -848,24 +1071,29 @@ class LlamaCockpitApp(App):
                     if dt == widget:
                         dt.remove_class("inactive-table")
                         try:
-                            self.active_toolbox_name = dt.get_cell_at((dt.cursor_row, 1))
+                            self.active_toolbox_name = dt.get_cell_at(
+                                (dt.cursor_row, 1)
+                            )
                         except Exception:
                             pass
                     else:
                         dt.add_class("inactive-table")
 
     def get_selected_toolboxes(self):
-        tb_dict = getattr(self, 'toolboxes_dict', {})
+        tb_dict = getattr(self, "toolboxes_dict", {})
         selected = []
-        if getattr(self, 'selected_toolboxes', set()):
+        if getattr(self, "selected_toolboxes", set()):
             for name in self.selected_toolboxes:
                 if name in tb_dict:
                     selected.append(tb_dict[name])
         return selected
 
     def get_selected_toolbox(self):
-        tb_dict = getattr(self, 'toolboxes_dict', {})
-        if getattr(self, 'selected_toolboxes', set()) and len(self.selected_toolboxes) == 1:
+        tb_dict = getattr(self, "toolboxes_dict", {})
+        if (
+            getattr(self, "selected_toolboxes", set())
+            and len(self.selected_toolboxes) == 1
+        ):
             return tb_dict.get(list(self.selected_toolboxes)[0])
         return None
 
@@ -889,7 +1117,8 @@ class LlamaCockpitApp(App):
             return
 
         installed = {
-            name: tb for name, tb in getattr(self, "toolboxes_dict", {}).items()
+            name: tb
+            for name, tb in getattr(self, "toolboxes_dict", {}).items()
             if tb.get("status") != "Not Installed"
         }
         self.selected_benchmark_toolboxes.intersection_update(installed)
@@ -919,48 +1148,82 @@ class LlamaCockpitApp(App):
 
     def refresh_toolboxes(self):
         self._mounting_tables = True
-        
+
         platform = get_platform(self.active_platform_id)
         if not platform:
             self._mounting_tables = False
             return
         registry = platform.get("registry", "")
         grouped_data = get_all_toolboxes(registry, platform)
-        
+
         self.toolboxes_dict = {}
-        
+
         container = self.query_one("#toolbox_container", VerticalScroll)
         container.remove_children()
-        
+
         default_tag = get_default_toolbox(self.active_platform_id)
         if not default_tag:
             default_tag = platform.get("default_toolbox_tag")
-        
+
         for group_name, toolboxes in grouped_data.items():
-            if not toolboxes: continue
+            if not toolboxes:
+                continue
             collapsed = group_name != "Official Toolboxes"
-            table = DataTable(id=f"dt_{group_name.replace(' ', '_').replace('/', '')}", cursor_type="row")
+            table = DataTable(
+                id=f"dt_{group_name.replace(' ', '_').replace('/', '')}",
+                cursor_type="row",
+            )
             table.add_class("inactive-table")
-            table.add_columns("Sel", "Toolbox Name", "Description", "Status", "Created", "Latest Release")
-            
+            table.add_columns(
+                "Sel",
+                "Toolbox Name",
+                "Description",
+                "Status",
+                "Created",
+                "Latest Release",
+            )
+
             for tb in toolboxes:
                 self.toolboxes_dict[tb["name"]] = tb
                 if tb["status"] == "Not Installed":
                     status_fmt = "[red]Needs Download[/red]"
                 else:
-                    status_fmt = "[green]Running[/green]" if "Up" in tb.get("status", "") else "[dim]Downloaded[/dim]"
-                
-                desc = tb.get('description', '')
-                if default_tag and default_tag in tb.get('image', ''):
+                    status_fmt = (
+                        "[green]Running[/green]"
+                        if "Up" in tb.get("status", "")
+                        else "[dim]Downloaded[/dim]"
+                    )
+
+                desc = tb.get("description", "")
+                if default_tag and default_tag in tb.get("image", ""):
                     desc = f"[bold #e57373](Default)[/] {desc}"
-                
-                sel_fmt = "\\[x]" if tb['name'] in getattr(self, 'selected_toolboxes', set()) else "\\[ ]"
-                table.add_row(sel_fmt, tb['name'], desc, status_fmt, tb.get('created', '')[:10], "")
-                
-            btn_toggle = Button("Select/Deselect All", id=f"btn_toggle_{table.id}", classes="btn-toggle-all")
-            col = Collapsible(Vertical(btn_toggle, table), title=f"{group_name} ({len(toolboxes)})", collapsed=collapsed)
+
+                sel_fmt = (
+                    "\\[x]"
+                    if tb["name"] in getattr(self, "selected_toolboxes", set())
+                    else "\\[ ]"
+                )
+                table.add_row(
+                    sel_fmt,
+                    tb["name"],
+                    desc,
+                    status_fmt,
+                    tb.get("created", "")[:10],
+                    "",
+                )
+
+            btn_toggle = Button(
+                "Select/Deselect All",
+                id=f"btn_toggle_{table.id}",
+                classes="btn-toggle-all",
+            )
+            col = Collapsible(
+                Vertical(btn_toggle, table),
+                title=f"{group_name} ({len(toolboxes)})",
+                collapsed=collapsed,
+            )
             container.mount(col)
-            
+
         def finish_mounting():
             first = True
             for dt in self.query(DataTable):
@@ -968,7 +1231,9 @@ class LlamaCockpitApp(App):
                     if first and dt.row_count > 0:
                         dt.remove_class("inactive-table")
                         try:
-                            self.active_toolbox_name = dt.get_cell_at((dt.cursor_row, 1))
+                            self.active_toolbox_name = dt.get_cell_at(
+                                (dt.cursor_row, 1)
+                            )
                         except Exception:
                             pass
                         first = False
@@ -976,20 +1241,20 @@ class LlamaCockpitApp(App):
                         dt.add_class("inactive-table")
 
             self._mounting_tables = False
-            
+
         self.refresh_benchmark_toolboxes()
         self.call_next(finish_mounting)
-
 
     def refresh_server_images(self):
         sel_engine = self.query_one("#sel_engine", SearchableSelect)
         engine = sel_engine.value
-        if not isinstance(engine, str) or not engine: return
-        
+        if not isinstance(engine, str) or not engine:
+            return
+
         platform = get_platform(self.active_platform_id)
         registry = platform.get("registry", "") if platform else ""
         installed = get_installed_toolboxes(registry, engine)
-        
+
         # Get all configured images for the platform from toolboxes.json
         configured_images = []
         if platform:
@@ -997,15 +1262,15 @@ class LlamaCockpitApp(App):
                 for tb in group.get("toolboxes", []):
                     tag = tb.get("tag", "latest")
                     configured_images.append(f"{registry}:{tag}")
-                    
+
         sel_image = self.query_one("#sel_image", SearchableSelect)
-        images = sorted(set([tb['image'] for tb in installed] + configured_images))
+        images = sorted(set([tb["image"] for tb in installed] + configured_images))
         sel_image.set_options([(img, img) for img in images])
         if images:
             default_tag = get_default_toolbox(self.active_platform_id)
             if not default_tag and platform:
                 default_tag = platform.get("default_toolbox_tag")
-                
+
             selected = images[0]
             if default_tag:
                 for img in images:
@@ -1028,37 +1293,48 @@ class LlamaCockpitApp(App):
         """When a model is selected, configure MTP zone, inference profile zone, and extra args."""
         selected_path = str(event.value) if event.value else ""
         model_config = get_model_config(selected_path)
-        
+
         # Store current model config for use by other handlers
         self._current_model_config = model_config
-        
+
         # Reset Extra Args to base immediately so all change handlers start with a clean state
         inp = self.query_one("#inp_custom_args", Input)
-        base_arg = "--no-jinja" if (model_config and model_config.get("no_jinja")) else "--jinja"
+        base_arg = (
+            "--no-jinja"
+            if (model_config and model_config.get("no_jinja"))
+            else "--jinja"
+        )
         self._expected_custom_args = base_arg
         inp.value = base_arg
-        
+
         mtp_zone = self.query_one("#mtp_zone", Vertical)
         profile_zone = self.query_one("#profile_zone", Vertical)
-        
+
         # ── MTP Zone ────────────────────────────────────────────────────
         mtp_config = get_mtp_config(model_config)
         if mtp_config:
             mtp_zone.styles.display = "block"
             chk = self.query_one("#chk_mtp_enable", Checkbox)
             chk.value = True
-            self.query_one("#inp_mtp_draft_n", Input).value = str(mtp_config.get("default_draft_n", 2))
-            self.query_one("#inp_mtp_np", Input).value = str(mtp_config.get("default_np", 1))
+            self.query_one("#inp_mtp_draft_n", Input).value = str(
+                mtp_config.get("default_draft_n", 2)
+            )
+            self.query_one("#inp_mtp_np", Input).value = str(
+                mtp_config.get("default_np", 1)
+            )
         else:
             mtp_zone.styles.display = "none"
-        
+
         # ── Inference Profile Zone ──────────────────────────────────────
         profiles = get_inference_profiles(model_config)
         if profiles:
             profile_zone.styles.display = "block"
             sel_profile = self.query_one("#sel_inference_profile", SearchableSelect)
             profile_names = list(profiles.keys())
-            options = [(name, name) for name in profile_names] + [("Default (empty)", "Default (empty)"), ("Custom", "Custom")]
+            options = [(name, name) for name in profile_names] + [
+                ("Default (empty)", "Default (empty)"),
+                ("Custom", "Custom"),
+            ]
             sel_profile.set_options(options)
             # Auto-select first profile
             sel_profile.value = profile_names[0]
@@ -1068,7 +1344,7 @@ class LlamaCockpitApp(App):
             profile_zone.styles.display = "none"
             self.query_one("#sel_inference_profile", SearchableSelect).set_options([])
             self.query_one("#lbl_profile_desc", Label).update("")
-        
+
         self._rebuild_extra_args()
 
     @on(SearchableSelect.Changed, "#sel_inference_profile")
@@ -1077,16 +1353,18 @@ class LlamaCockpitApp(App):
         profile_name = str(event.value) if event.value else ""
         model_config = getattr(self, "_current_model_config", None)
         profiles = get_inference_profiles(model_config)
-        
+
         if profile_name == "Custom" or not profile_name:
             self.query_one("#lbl_profile_desc", Label).update("Manual configuration")
             return
         elif profile_name == "Default (empty)":
-            self.query_one("#lbl_profile_desc", Label).update("No extra sampling parameters")
+            self.query_one("#lbl_profile_desc", Label).update(
+                "No extra sampling parameters"
+            )
         elif profile_name in profiles:
             desc = profiles[profile_name].get("description", "")
             self.query_one("#lbl_profile_desc", Label).update(desc)
-        
+
         self._rebuild_extra_args()
 
     @on(Checkbox.Changed, "#chk_kv_cache")
@@ -1120,7 +1398,7 @@ class LlamaCockpitApp(App):
         """When user manually edits Extra Args, switch profile to Custom."""
         if getattr(self, "_expected_custom_args", None) == event.value:
             return
-        
+
         # User is manually editing — switch profile dropdown to "Custom"
         model_config = getattr(self, "_current_model_config", None)
         profiles = get_inference_profiles(model_config)
@@ -1128,19 +1406,25 @@ class LlamaCockpitApp(App):
             sel_profile = self.query_one("#sel_inference_profile", SearchableSelect)
             if sel_profile.value != "Custom":
                 sel_profile.value = "Custom"
-                self.query_one("#lbl_profile_desc", Label).update("Manual configuration")
+                self.query_one("#lbl_profile_desc", Label).update(
+                    "Manual configuration"
+                )
 
     def _rebuild_extra_args(self):
         """Rebuild the Extra Args field from base + profile args + MTP args.
-        
+
         Named profiles always rebuild from scratch (base_arg + profile + MTP)
         to prevent stale args from a previous model/profile leaking through.
         Custom mode preserves the user's manual edits and only touches MTP flags.
         """
         inp = self.query_one("#inp_custom_args", Input)
         model_config = getattr(self, "_current_model_config", None)
-        base_arg = "--no-jinja" if (model_config and model_config.get("no_jinja")) else "--jinja"
-        
+        base_arg = (
+            "--no-jinja"
+            if (model_config and model_config.get("no_jinja"))
+            else "--jinja"
+        )
+
         # ── Determine profile state ─────────────────────────────────────
         profile_args = ""
         is_custom = True
@@ -1154,7 +1438,7 @@ class LlamaCockpitApp(App):
             elif profile_name and profile_name != "Custom" and profile_name in profiles:
                 is_custom = False
                 profile_args = profiles[profile_name].get("args", "")
-        
+
         # ── Build merged args ───────────────────────────────────────────
         if is_custom:
             # Custom mode: preserve current value, only touch MTP flags below
@@ -1164,19 +1448,23 @@ class LlamaCockpitApp(App):
             merged = base_arg
             if profile_args:
                 merged = self._merge_args(merged, profile_args)
-        
+
         # ── MTP args (always add/remove cleanly) ────────────────────────
         mtp_config = get_mtp_config(model_config)
         if mtp_config:
             # Strip any existing MTP flags first
-            merged = self._remove_flags(merged, ["--spec-type", "--spec-draft-n-max", "-np"])
+            merged = self._remove_flags(
+                merged, ["--spec-type", "--spec-draft-n-max", "-np"]
+            )
             chk = self.query_one("#chk_mtp_enable", Checkbox)
             if chk.value:
                 draft_n = self.query_one("#inp_mtp_draft_n", Input).value or "2"
                 np_val = self.query_one("#inp_mtp_np", Input).value or "1"
-                mtp_args = f"--spec-type draft-mtp --spec-draft-n-max {draft_n} -np {np_val}"
+                mtp_args = (
+                    f"--spec-type draft-mtp --spec-draft-n-max {draft_n} -np {np_val}"
+                )
                 merged = self._merge_args(merged, mtp_args)
-                
+
         self._expected_custom_args = merged
         inp.value = merged
 
@@ -1184,13 +1472,14 @@ class LlamaCockpitApp(App):
     def _remove_flags(arg_str: str, flags_to_remove: list) -> str:
         """Remove specified flags and their values from the argument string."""
         import shlex
+
         if not arg_str:
             return ""
         try:
             tokens = shlex.split(arg_str)
         except Exception:
             return arg_str
-            
+
         new_tokens = []
         i = 0
         while i < len(tokens):
@@ -1209,15 +1498,15 @@ class LlamaCockpitApp(App):
     def _merge_args(base: str, override: str) -> str:
         """Merge two argument strings. Override args replace matching flags in base, new ones are appended."""
         import shlex
-        
+
         if not override:
             return base
         if not base:
             return override
-            
+
         base_tokens = shlex.split(base)
         override_tokens = shlex.split(override)
-        
+
         # Parse into ordered list of (flag, value_or_None) pairs
         def parse_flags(tokens):
             flags = []
@@ -1237,14 +1526,14 @@ class LlamaCockpitApp(App):
                     flags.append((token, None))
                     i += 1
             return flags
-        
+
         base_flags = parse_flags(base_tokens)
         override_flags = parse_flags(override_tokens)
-        
+
         # Build result: start with base, override matching, append new
         override_map = {f: v for f, v in override_flags}
         override_keys_used = set()
-        
+
         result = []
         for flag, val in base_flags:
             if flag in override_map:
@@ -1253,12 +1542,12 @@ class LlamaCockpitApp(App):
                 override_keys_used.add(flag)
             else:
                 result.append((flag, val))
-        
+
         # Append any override flags not already in base
         for flag, val in override_flags:
             if flag not in override_keys_used:
                 result.append((flag, val))
-        
+
         # Serialize back (shlex.quote each token to preserve special chars like JSON)
         parts = []
         for flag, val in result:
@@ -1273,21 +1562,21 @@ class LlamaCockpitApp(App):
         dt = self.query_one("#local_model_list", DataTable)
         dt.clear(columns=True)
         dt.add_columns("Filename")
-        
+
         sel_model = self.query_one("#sel_model", SearchableSelect)
         model_opts = []
-        
+
         try:
             sel_image = self.query_one("#sel_image", SearchableSelect)
             selected_image = sel_image.value or ""
         except Exception:
             selected_image = ""
-            
+
         is_rocmfp4_image = "rocmfp4" in str(selected_image).lower()
-        
+
         for m in models:
             dt.add_row(m["name"])
-            
+
             is_rocmfp4_model = "rocmfp4" in m["name"].lower()
             if is_rocmfp4_image:
                 if not is_rocmfp4_model:
@@ -1295,9 +1584,9 @@ class LlamaCockpitApp(App):
             else:
                 if is_rocmfp4_model:
                     continue
-                    
+
             model_opts.append((m["name"], m["path"]))
-            
+
         sel_model.set_options(model_opts)
         if model_opts:
             previous_val = sel_model.value
@@ -1342,34 +1631,44 @@ class LlamaCockpitApp(App):
     def _handle_set_default(self):
         selected = self.get_selected_toolboxes()
         if not selected:
-            self.notify("Please select a single toolbox to set as default.", severity="error")
+            self.notify(
+                "Please select a single toolbox to set as default.", severity="error"
+            )
             return
         if len(selected) > 1:
-            self.notify("Please select exactly one toolbox to set as default.", severity="error")
+            self.notify(
+                "Please select exactly one toolbox to set as default.", severity="error"
+            )
             return
-            
+
         tb = selected[0]
         image = tb.get("image", "")
         tag = image.split(":")[-1] if ":" in image else image
-        
+
         if save_default_toolbox(self.active_platform_id, tag):
-            self.notify(f"Set {tag} as default for platform {self.active_platform_id}.", severity="success", timeout=5)
+            self.notify(
+                f"Set {tag} as default for platform {self.active_platform_id}.",
+                severity="success",
+                timeout=5,
+            )
             self.refresh_toolboxes()
             self.refresh_server_images()
         else:
-            self.notify("Failed to save default toolbox configuration.", severity="error")
-
+            self.notify(
+                "Failed to save default toolbox configuration.", severity="error"
+            )
 
     def _handle_switch_platform(self):
         platforms = get_platforms()
         display_options = []
         for p in platforms:
             marker = "● " if p["id"] == self.active_platform_id else "  "
-            display_options.append(f"{marker}{p['name']}  —  {p.get('description', '')}")
+            display_options.append(
+                f"{marker}{p['name']}  —  {p.get('description', '')}"
+            )
         self._switch_platforms = platforms
         self.app.push_screen(
-            SelectModal("Select Platform:", display_options),
-            self._on_platform_selected
+            SelectModal("Select Platform:", display_options), self._on_platform_selected
         )
 
     def _on_platform_selected(self, choice_idx: int | None) -> None:
@@ -1405,12 +1704,19 @@ class LlamaCockpitApp(App):
     @work(thread=True, exclusive=True)
     def _check_updates_bg(self, tbs: list):
         for tb in tbs:
-            remote_date = get_remote_image_date(tb['image'])
+            remote_date = get_remote_image_date(tb["image"])
             if remote_date:
                 remote_date_str = remote_date[:10]
-                self.app.call_from_thread(self._update_toolbox_cell, tb['name'], 5, remote_date_str)
-                if is_remote_image_newer(remote_date, tb.get('created', '')):
-                    self.app.call_from_thread(self._update_toolbox_cell, tb['name'], 3, "[yellow]Needs Update[/yellow]")
+                self.app.call_from_thread(
+                    self._update_toolbox_cell, tb["name"], 5, remote_date_str
+                )
+                if is_remote_image_newer(remote_date, tb.get("created", "")):
+                    self.app.call_from_thread(
+                        self._update_toolbox_cell,
+                        tb["name"],
+                        3,
+                        "[yellow]Needs Update[/yellow]",
+                    )
         self.app.call_from_thread(self.notify, "Update check complete.", timeout=3)
 
     def _handle_delete(self):
@@ -1419,11 +1725,11 @@ class LlamaCockpitApp(App):
         if not tbs:
             self.notify("No installed toolboxes selected.", severity="warning")
             return
-        names = ", ".join([tb['name'] for tb in tbs])
+        names = ", ".join([tb["name"] for tb in tbs])
         self._pending_delete_tbs = tbs
         self.app.push_screen(
             ConfirmModal(f"Are you sure you want to delete: {names}?"),
-            self._on_delete_confirmed
+            self._on_delete_confirmed,
         )
 
     def _handle_create_update(self):
@@ -1439,9 +1745,9 @@ class LlamaCockpitApp(App):
             if tb["status"] == "Not Installed":
                 to_create.append(tb)
             else:
-                remote_date = get_remote_image_date(tb['image'])
+                remote_date = get_remote_image_date(tb["image"])
                 if remote_date:
-                    if is_remote_image_newer(remote_date, tb.get('created', '')):
+                    if is_remote_image_newer(remote_date, tb.get("created", "")):
                         to_update.append(tb)
                     else:
                         already_updated.append(tb)
@@ -1462,7 +1768,7 @@ class LlamaCockpitApp(App):
             return
 
         if to_update:
-            names = ", ".join([tb['name'] for tb in to_update])
+            names = ", ".join([tb["name"] for tb in to_update])
             warning_msg = (
                 f"The following toolboxes have updates available and will be DELETED and RECREATED:\n"
                 f"  {names}\n\n"
@@ -1480,7 +1786,9 @@ class LlamaCockpitApp(App):
             self.notify("Select exactly one toolbox to enter.", severity="warning")
             return
         if tb["status"] == "Not Installed":
-            self.notify("Cannot enter a toolbox that is not installed.", severity="warning")
+            self.notify(
+                "Cannot enter a toolbox that is not installed.", severity="warning"
+            )
             return
         cmd = get_os_toolbox_cmd()
         with self.suspend():
@@ -1492,7 +1800,10 @@ class LlamaCockpitApp(App):
         engine = self.query_one("#sel_engine", SearchableSelect).value
 
         if engine and is_server_running(engine):
-            self.notify(f"Server container '{SERVER_CONTAINER_NAME}' is already running.", severity="error")
+            self.notify(
+                f"Server container '{SERVER_CONTAINER_NAME}' is already running.",
+                severity="error",
+            )
             return
 
         image = self.query_one("#sel_image", SearchableSelect).value
@@ -1509,15 +1820,20 @@ class LlamaCockpitApp(App):
         # Check compatibility
         is_rocmfp4_image = "rocmfp4" in str(image).lower()
         is_rocmfp4_model = model_path and "rocmfp4" in str(model_path).lower()
-        
+
         if is_rocmfp4_image and not is_rocmfp4_model:
-            self.notify("The rocmfp4 toolbox only supports rocmfp4 quantized models.", severity="error")
+            self.notify(
+                "The rocmfp4 toolbox only supports rocmfp4 quantized models.",
+                severity="error",
+            )
             return
-            
+
         if is_rocmfp4_model and not is_rocmfp4_image:
-            self.notify("rocmfp4 models require a rocmfp4 compatible toolbox.", severity="error")
+            self.notify(
+                "rocmfp4 models require a rocmfp4 compatible toolbox.", severity="error"
+            )
             return
-            
+
         if model_path:
             model_config = get_model_config(model_path)
             if model_config and "compatible_toolboxes" in model_config:
@@ -1526,16 +1842,23 @@ class LlamaCockpitApp(App):
                 compatible = any(alt.lower() in image_lower for alt in allowed)
                 if not compatible:
                     allowed_str = ", ".join(allowed)
-                    self.notify(f"Model compatibility error: Only supported on {allowed_str}", severity="error")
+                    self.notify(
+                        f"Model compatibility error: Only supported on {allowed_str}",
+                        severity="error",
+                    )
                     return
 
         use_kv_cache = self.query_one("#chk_kv_cache", Checkbox).value
-        kv_cache_type = str(self.query_one("#sel_kv_cache_type", SearchableSelect).value) if use_kv_cache else ""
+        kv_cache_type = (
+            str(self.query_one("#sel_kv_cache_type", SearchableSelect).value)
+            if use_kv_cache
+            else ""
+        )
         use_detach = self.query_one("#chk_detach", Checkbox).value
 
         if engine and image and model_path and ctx.isdigit():
             ngl_val = int(ngl) if ngl.isdigit() else 999
-            
+
             engine_args = None
             if hasattr(self, "toolboxes_dict"):
                 for tb in self.toolboxes_dict.values():
@@ -1544,40 +1867,62 @@ class LlamaCockpitApp(App):
                         break
 
             cmd = build_server_cmd(
-                engine, image, model_path, int(ctx), use_fa, use_no_mmap, 
-                custom_args, host, port, ngl_val, 
-                hip_devices=hip_devices, 
-                platform_id=self.active_platform_id, 
+                engine,
+                image,
+                model_path,
+                int(ctx),
+                use_fa,
+                use_no_mmap,
+                custom_args,
+                host,
+                port,
+                ngl_val,
+                hip_devices=hip_devices,
+                platform_id=self.active_platform_id,
                 engine_args=engine_args,
                 kv_cache_type=kv_cache_type,
-                detach=use_detach
+                detach=use_detach,
             )
-            
-            subprocess.run([engine, "rm", "-f", SERVER_CONTAINER_NAME], capture_output=True)
-            
+
+            subprocess.run(
+                [engine, "rm", "-f", SERVER_CONTAINER_NAME], capture_output=True
+            )
+
             if any(str(arg).startswith("/dev/infiniband") for arg in cmd):
-                self.notify("InfiniBand/RDMA detected — enabling RDMA for native server mode.", severity="info")
-            
+                self.notify(
+                    "InfiniBand/RDMA detected — enabling RDMA for native server mode.",
+                    severity="info",
+                )
+
             if use_detach:
                 subprocess.Popen(cmd)
-                self.notify(f"Server started in background. Container: {SERVER_CONTAINER_NAME}", severity="success")
+                self.notify(
+                    f"Server started in background. Container: {SERVER_CONTAINER_NAME}",
+                    severity="success",
+                )
             else:
                 import signal
                 import os
+
                 with self.suspend():
                     print(f"\nStarting server with command:\n{shlex.join(cmd)}\n")
                     print("Press Ctrl+C to stop the server and return to the UI.\n")
-                    
-                    old_handler = signal.signal(signal.SIGINT, signal.default_int_handler)
+
+                    old_handler = signal.signal(
+                        signal.SIGINT, signal.default_int_handler
+                    )
                     try:
                         signal.signal(signal.SIGINT, signal.default_int_handler)
                         os.system(shlex.join(cmd))
                     except KeyboardInterrupt:
                         print("\nStopping server...")
-                        subprocess.run([engine, "rm", "-f", SERVER_CONTAINER_NAME], capture_output=True)
+                        subprocess.run(
+                            [engine, "rm", "-f", SERVER_CONTAINER_NAME],
+                            capture_output=True,
+                        )
                     finally:
                         signal.signal(signal.SIGINT, old_handler)
-            
+
             self._update_server_buttons()
 
     def _handle_stop_server(self):
@@ -1588,7 +1933,11 @@ class LlamaCockpitApp(App):
 
         with self.suspend():
             print(f"\nStopping server container '{SERVER_CONTAINER_NAME}'...")
-            result = subprocess.run([engine, "rm", "-f", SERVER_CONTAINER_NAME], capture_output=True, text=True)
+            result = subprocess.run(
+                [engine, "rm", "-f", SERVER_CONTAINER_NAME],
+                capture_output=True,
+                text=True,
+            )
             if result.returncode == 0:
                 print(f"Server container '{SERVER_CONTAINER_NAME}' stopped.")
             else:
@@ -1703,22 +2052,20 @@ class LlamaCockpitApp(App):
                 context_step=positive_input(
                     "#inp_benchmark_context_step", "Starting depth step"
                 ),
-                prefill=positive_input(
-                    "#inp_benchmark_prefill", "Prefill chunk"
-                ),
+                prefill=positive_input("#inp_benchmark_prefill", "Prefill chunk"),
                 generation=positive_input(
                     "#inp_benchmark_generation", "Generation tokens"
                 ),
-                repetitions=positive_input(
-                    "#inp_benchmark_repetitions", "Repetitions"
-                ),
-                delay=nonnegative_input(
-                    "#inp_benchmark_cooldown", "Cooldown"
-                ),
+                repetitions=positive_input("#inp_benchmark_repetitions", "Repetitions"),
+                delay=nonnegative_input("#inp_benchmark_cooldown", "Cooldown"),
                 flash_attention=self.query_one("#chk_benchmark_fa", Checkbox).value,
                 use_mmap=not self.query_one("#chk_benchmark_no_mmap", Checkbox).value,
                 kv_cache_type=(
-                    str(self.query_one("#sel_benchmark_kv_cache_type", SearchableSelect).value)
+                    str(
+                        self.query_one(
+                            "#sel_benchmark_kv_cache_type", SearchableSelect
+                        ).value
+                    )
                     if self.query_one("#chk_benchmark_kv_cache", Checkbox).value
                     else ""
                 ),
@@ -1729,7 +2076,9 @@ class LlamaCockpitApp(App):
                 vulkan_ubatch=optional_positive_input(
                     "#inp_benchmark_vulkan_ubatch", "Vulkan ubatch override"
                 ),
-                extra_args=self.query_one("#inp_benchmark_extra_args", Input).value.strip(),
+                extra_args=self.query_one(
+                    "#inp_benchmark_extra_args", Input
+                ).value.strip(),
             )
             # Validate quoting in custom arguments before suspending the UI.
             if settings.extra_args:
@@ -1747,11 +2096,15 @@ class LlamaCockpitApp(App):
             return
 
         if not save_benchmark_results_dir(results_path):
-            self.notify("Could not create or save the benchmark results folder.", severity="error")
+            self.notify(
+                "Could not create or save the benchmark results folder.",
+                severity="error",
+            )
             return
 
         model_paths = [
-            model["path"] for model in getattr(self, "current_models", [])
+            model["path"]
+            for model in getattr(self, "current_models", [])
             if model["path"] in self.selected_benchmark_models
         ]
         toolbox_names = sorted(self.selected_benchmark_toolboxes)
@@ -1769,7 +2122,9 @@ class LlamaCockpitApp(App):
             print(f"\nRunning {len(jobs)} llama-bench job(s) sequentially.")
             print(f"Results folder: {get_benchmark_results_dir()}\n")
             for index, job in enumerate(jobs, start=1):
-                print(f"[{index}/{len(jobs)}] {job.toolbox_name} | {os.path.basename(job.model_path)} | {job.series} curve")
+                print(
+                    f"[{index}/{len(jobs)}] {job.toolbox_name} | {os.path.basename(job.model_path)} | {job.series} curve"
+                )
                 print(f"  Command: {shlex.join(job.command)}")
                 print(f"  Log: {job.output_path}")
                 try:
@@ -1794,7 +2149,9 @@ class LlamaCockpitApp(App):
                     print(f"  FAILED: llama-bench exited with code {return_code}\n")
 
                 if index < len(jobs) and status != "skipped" and settings.delay:
-                    print(f"  Cooling down for {settings.delay} seconds before the next run...\n")
+                    print(
+                        f"  Cooling down for {settings.delay} seconds before the next run...\n"
+                    )
                     time.sleep(settings.delay)
 
             print(
@@ -1817,8 +2174,6 @@ class LlamaCockpitApp(App):
             severity=severity,
             timeout=8,
         )
-
-
 
     # ── Model Manager Handlers ────────────────────────────────────
 
@@ -1844,8 +2199,10 @@ class LlamaCockpitApp(App):
         if not quants:
             with self.suspend():
                 print("No GGUF quants found.")
-                try: input("Press Enter to return...")
-                except: pass
+                try:
+                    input("Press Enter to return...")
+                except:
+                    pass
             return
 
         display_options = []
@@ -1865,7 +2222,7 @@ class LlamaCockpitApp(App):
         self._download_repo = repo
         self.app.push_screen(
             SelectModal("Available Quantizations:", display_options),
-            self._on_quant_selected
+            self._on_quant_selected,
         )
 
     # ── DataTable Helpers ─────────────────────────────────────────
@@ -1892,7 +2249,7 @@ class LlamaCockpitApp(App):
             with self.suspend():
                 for tb in tbs:
                     print(f"Deleting {tb['name']}...")
-                    delete_toolbox(tb['name'])
+                    delete_toolbox(tb["name"])
             self.selected_toolboxes.clear()
             self.refresh_toolboxes()
 
@@ -1903,14 +2260,14 @@ class LlamaCockpitApp(App):
         to_create = self._pending_create_tbs
         with self.suspend():
             for tb in to_update:
-                delete_toolbox(tb['name'])
+                delete_toolbox(tb["name"])
         self._do_create_toolboxes(to_create + to_update)
 
     def _do_create_toolboxes(self, tbs: list) -> None:
         with self.suspend():
             for tb in tbs:
                 print(f"\nDownloading and creating toolbox {tb['name']}...")
-                create_toolbox(tb['name'], tb['image'], tb.get('args', []))
+                create_toolbox(tb["name"], tb["image"], tb.get("args", []))
             input("\nSuccess! Press Enter to return to UI...")
         self.selected_toolboxes.clear()
         self.refresh_toolboxes()
@@ -1925,15 +2282,19 @@ class LlamaCockpitApp(App):
             self._download_choice_idx = choice_idx
             if installed_flags[choice_idx]:
                 self.app.push_screen(
-                    ConfirmModal(f"The quant {quants[choice_idx]} appears to be already downloaded.\nDo you want to download it anyway?"),
-                    self._on_redownload_confirmed
+                    ConfirmModal(
+                        f"The quant {quants[choice_idx]} appears to be already downloaded.\nDo you want to download it anyway?"
+                    ),
+                    self._on_redownload_confirmed,
                 )
             else:
                 self._do_download_quant(repo, quants[choice_idx])
 
     def _on_redownload_confirmed(self, confirmed: bool) -> None:
         if confirmed:
-            self._do_download_quant(self._download_repo, self._download_quants[self._download_choice_idx])
+            self._do_download_quant(
+                self._download_repo, self._download_quants[self._download_choice_idx]
+            )
 
     def _do_download_quant(self, repo: str, quant: str) -> None:
         cmd = get_download_cmd(repo, quant)
@@ -1956,9 +2317,11 @@ class LlamaCockpitApp(App):
                 pass
         self.refresh_models()
 
+
 def cli_main():
     app = LlamaCockpitApp()
     app.run()
+
 
 if __name__ == "__main__":
     cli_main()

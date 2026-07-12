@@ -9,9 +9,13 @@ from textual.widget import Widget
 
 # ── Confirm / Select Modals ─────────────────────────────────────────────────
 
+
 class ConfirmModal(ModalScreen[bool]):
     """A modal dialog that asks a Yes/No question."""
-    def __init__(self, message: str, yes_text: str = "Yes", no_text: str = "No", id: str = None):
+
+    def __init__(
+        self, message: str, yes_text: str = "Yes", no_text: str = "No", id: str = None
+    ):
         super().__init__(id=id)
         self.message = message
         self.yes_text = yes_text
@@ -34,6 +38,7 @@ class ConfirmModal(ModalScreen[bool]):
 
 class SelectModal(ModalScreen[int]):
     """A modal dialog that asks the user to select an option."""
+
     def __init__(self, title: str, options: list[str], id: str = None):
         super().__init__(id=id)
         self.title = title
@@ -56,6 +61,7 @@ class SelectModal(ModalScreen[int]):
 
 
 # ── Dropdown Overlay (screen-level floating list) ───────────────────────────
+
 
 class _DropdownOverlay(Widget):
     """
@@ -83,7 +89,9 @@ class _DropdownOverlay(Widget):
     }
     """
 
-    def __init__(self, options: list[tuple[str, str]], on_select, x: int, y: int, width: int):
+    def __init__(
+        self, options: list[tuple[str, str]], on_select, x: int, y: int, width: int
+    ):
         super().__init__()
         self._options = list(options)
         self._on_select = on_select
@@ -138,6 +146,7 @@ class _DropdownOverlay(Widget):
 
 # ── SearchableSelect ─────────────────────────────────────────────────────────
 
+
 class SearchableSelect(Widget):
     """
     A filterable combobox widget.
@@ -178,6 +187,7 @@ class SearchableSelect(Widget):
 
     class Changed(Message):
         """Posted when the selected value changes."""
+
         def __init__(self, value: str, select: "SearchableSelect"):
             self.value = value
             self.select = select
@@ -302,7 +312,9 @@ class SearchableSelect(Widget):
 
     def on_key(self, event: events.Key) -> None:
         """Handle keyboard navigation while overlay is open."""
-        if event.key in ("down", "up") and not (self._overlay and self._overlay.is_attached):
+        if event.key in ("down", "up") and not (
+            self._overlay and self._overlay.is_attached
+        ):
             # ↓/↑ with no overlay → open it
             self._open_overlay(self.query_one(Input).value.lower())
             event.prevent_default()
