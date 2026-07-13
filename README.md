@@ -44,6 +44,46 @@ pipx install git+https://github.com/kyuz0/llama-toolboxes-cockpit.git
 llama-cockpit
 ```
 
+### Benchmark methodology
+
+Benchmark mode produces a long-context throughput profile rather than a single
+headline score. Here, **depth** means the number of tokens already present in
+the KV cache, not model-layer depth.
+
+For every selected model and toolbox, the cockpit runs two `llama-bench`
+series over the same configurable starting KV depths:
+
+| Series | Starting state | Timed workload | Default measured span |
+| :--- | :--- | :--- | :--- |
+| Prefill | `d` tokens already cached | Append a 2,048-token prompt chunk | `d` to `d + 2,048` |
+| Generation | `d` tokens already cached | Decode 128 tokens sequentially | `d` to `d + 128` |
+
+With the defaults, `d` is `0, 8192, 16384, ..., 65536`, and each point is
+measured three times. `llama-bench` fills or restores the KV cache to `d`
+before starting the timer, so that setup work is excluded. A prefill point at
+32K therefore answers "how quickly can the next 2,048 prompt tokens be
+processed after 32K tokens are already cached?" It does not measure the time
+needed to ingest the first 32K tokens. Likewise, a generation point at 32K is
+the average throughput while decoding the following 128 tokens.
+
+Plot `starting_depth` on the x-axis and `avg_ts` (average tokens per second) on
+the y-axis, with separate lines for `prefill` and `generation`. These curves
+show how prompt ingestion and sequential decoding change as the KV cache grows.
+The CSV also includes `stddev_ts` and the individual `samples_ts` values.
+
+The benchmark uses synthetic token IDs and measures model execution only. It
+does not include model loading, tokenization, sampling, server or network
+overhead, streaming, concurrency, or output quality, so it should not be read
+as end-to-end chat latency. Also note that the maximum setting is a **starting**
+depth: with the defaults, the deepest prefill point ends at 67,584 tokens and
+the deepest generation point ends at 65,664 tokens.
+
+Raw results are saved as one JSONL file per model, toolbox, and series. The
+cockpit combines them into `curve_summary.csv`; it does not render the graph
+itself. Existing non-empty result files are skipped, so use a fresh results
+directory when changing depths, workload sizes, repetitions, or extra
+`llama-bench` arguments.
+
 ### Configuration
 
 User preferences are stored in `~/.llama-cockpit.conf`:
