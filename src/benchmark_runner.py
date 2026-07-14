@@ -45,7 +45,10 @@ def context_depths(settings: BenchmarkSettings) -> tuple[int, ...]:
         raise ValueError("Maximum context must be at least the context step.")
     if settings.max_context % settings.context_step:
         raise ValueError("Maximum context must be divisible by the context step.")
-    return (0, *range(settings.context_step, settings.max_context + 1, settings.context_step))
+    return (
+        0,
+        *range(settings.context_step, settings.max_context + 1, settings.context_step),
+    )
 
 
 def _toolbox_prefix(toolbox_command: str, toolbox_name: str) -> list[str]:
@@ -87,19 +90,31 @@ def build_benchmark_jobs(
                 ("generation", 0, settings.generation, depth_values),
             ):
                 command = _toolbox_prefix(toolbox_command, toolbox_name)
-                command.extend([
-                    "llama-bench",
-                    "-ngl", "99",
-                    "-mmp", "1" if settings.use_mmap else "0",
-                    "-m", model_path,
-                    "-fa", "1" if settings.flash_attention else "0",
-                    "-p", str(prompt_tokens),
-                    "-n", str(generation_tokens),
-                    "-d", depths,
-                    "-b", str(settings.prefill),
-                    "-r", str(settings.repetitions),
-                    "-o", "jsonl",
-                ])
+                command.extend(
+                    [
+                        "llama-bench",
+                        "-ngl",
+                        "99",
+                        "-mmp",
+                        "1" if settings.use_mmap else "0",
+                        "-m",
+                        model_path,
+                        "-fa",
+                        "1" if settings.flash_attention else "0",
+                        "-p",
+                        str(prompt_tokens),
+                        "-n",
+                        str(generation_tokens),
+                        "-d",
+                        depths,
+                        "-b",
+                        str(settings.prefill),
+                        "-r",
+                        str(settings.repetitions),
+                        "-o",
+                        "jsonl",
+                    ]
+                )
 
                 suffix = f"__curve-{series}"
                 if settings.flash_attention:
@@ -113,21 +128,29 @@ def build_benchmark_jobs(
                     suffix += f"__ub{ubatch}"
 
                 if settings.kv_cache_type:
-                    command.extend([
-                        "--cache-type-k", settings.kv_cache_type,
-                        "--cache-type-v", settings.kv_cache_type,
-                    ])
+                    command.extend(
+                        [
+                            "--cache-type-k",
+                            settings.kv_cache_type,
+                            "--cache-type-v",
+                            settings.kv_cache_type,
+                        ]
+                    )
 
                 command.extend(extra_args)
-                output_path = results_dir / f"{model_name}__{toolbox_part}{suffix}.jsonl"
-                jobs.append(BenchmarkJob(
-                    toolbox_name=toolbox_name,
-                    model_path=model_path,
-                    series=series,
-                    command=tuple(command),
-                    output_path=output_path,
-                    stderr_path=output_path.with_suffix(".stderr.log"),
-                ))
+                output_path = (
+                    results_dir / f"{model_name}__{toolbox_part}{suffix}.jsonl"
+                )
+                jobs.append(
+                    BenchmarkJob(
+                        toolbox_name=toolbox_name,
+                        model_path=model_path,
+                        series=series,
+                        command=tuple(command),
+                        output_path=output_path,
+                        stderr_path=output_path.with_suffix(".stderr.log"),
+                    )
+                )
 
     return jobs
 
@@ -149,7 +172,9 @@ def run_benchmark_job(job: BenchmarkJob) -> tuple[str, int | None]:
                 text=True,
             )
             if result.returncode != 0:
-                error_output.write(f"\nBenchmark exited with code {result.returncode}\n")
+                error_output.write(
+                    f"\nBenchmark exited with code {result.returncode}\n"
+                )
                 return "failed", result.returncode
     except KeyboardInterrupt:
         if job.output_path.exists():
@@ -182,30 +207,48 @@ def write_curve_summary(jobs: list[BenchmarkJob], output_path: Path) -> int:
                 depth = int(record.get("n_depth", 0))
                 prompt = int(record.get("n_prompt", 0))
                 generated = int(record.get("n_gen", 0))
-                rows.append({
-                    "model": Path(job.model_path).stem,
-                    "toolbox": job.toolbox_name,
-                    "series": job.series,
-                    "starting_depth": depth,
-                    "ending_context": depth + prompt + generated,
-                    "n_prompt": prompt,
-                    "n_gen": generated,
-                    "n_batch": int(record.get("n_batch", 0)),
-                    "n_ubatch": int(record.get("n_ubatch", 0)),
-                    "avg_ts": float(record.get("avg_ts", 0)),
-                    "stddev_ts": float(record.get("stddev_ts", 0)),
-                    "samples_ts": json.dumps(record.get("samples_ts", [])),
-                    "build_commit": record.get("build_commit", ""),
-                    "gpu_info": record.get("gpu_info", ""),
-                })
+                rows.append(
+                    {
+                        "model": Path(job.model_path).stem,
+                        "toolbox": job.toolbox_name,
+                        "series": job.series,
+                        "starting_depth": depth,
+                        "ending_context": depth + prompt + generated,
+                        "n_prompt": prompt,
+                        "n_gen": generated,
+                        "n_batch": int(record.get("n_batch", 0)),
+                        "n_ubatch": int(record.get("n_ubatch", 0)),
+                        "avg_ts": float(record.get("avg_ts", 0)),
+                        "stddev_ts": float(record.get("stddev_ts", 0)),
+                        "samples_ts": json.dumps(record.get("samples_ts", [])),
+                        "build_commit": record.get("build_commit", ""),
+                        "gpu_info": record.get("gpu_info", ""),
+                    }
+                )
 
-    rows.sort(key=lambda row: (
-        row["toolbox"], row["model"], row["series"], row["starting_depth"]
-    ))
+    rows.sort(
+        key=lambda row: (
+            row["toolbox"],
+            row["model"],
+            row["series"],
+            row["starting_depth"],
+        )
+    )
     fields = [
-        "model", "toolbox", "series", "starting_depth", "ending_context",
-        "n_prompt", "n_gen", "n_batch", "n_ubatch", "avg_ts",
-        "stddev_ts", "samples_ts", "build_commit", "gpu_info",
+        "model",
+        "toolbox",
+        "series",
+        "starting_depth",
+        "ending_context",
+        "n_prompt",
+        "n_gen",
+        "n_batch",
+        "n_ubatch",
+        "avg_ts",
+        "stddev_ts",
+        "samples_ts",
+        "build_commit",
+        "gpu_info",
     ]
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w", newline="", encoding="utf-8") as output:
