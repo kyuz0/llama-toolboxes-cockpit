@@ -1,9 +1,32 @@
 import os
+import subprocess
+import json
 from pathlib import Path
 from .model_manager import resolve_model_path
 from .toolbox_manager import extend_missing_option_pairs, upgrade_groups_for_podman
 
 import shlex
+
+
+def is_server_running(engine: str) -> bool:
+    """Check if the server container is currently running."""
+    if not engine:
+        return False
+    result = subprocess.run(
+        [engine, "ps", "--format", "json"],
+        capture_output=True, text=True
+    )
+    if result.returncode == 0:
+        try:
+            containers = json.loads(result.stdout)
+            running = [c.get("Names", []) for c in containers]
+            running_names = [n for names in running for n in names]
+            return SERVER_CONTAINER_NAME in running_names
+        except json.JSONDecodeError:
+            pass
+    return False
+
+SERVER_CONTAINER_NAME = "llama-cockpit-server"
 
 def get_server_rdma_args(
     engine: str,
@@ -31,7 +54,7 @@ def get_server_rdma_args(
 
     return []
 
-def build_server_cmd(engine: str, image: str, model_path: str, context_size: int, use_fa: bool, use_no_mmap: bool, custom_args: str, host: str = "localhost", port: str = "8080", ngl: int = 999, hip_devices: str = "", platform_id: str = "", engine_args: list[str] = None, kv_cache_type: str = "") -> list[str]:
+def build_server_cmd(engine: str, image: str, model_path: str, context_size: int, use_fa: bool, use_no_mmap: bool, custom_args: str, host: str = "localhost", port: str = "8080", ngl: int = 999, hip_devices: str = "", platform_id: str = "", engine_args: list[str] = None, kv_cache_type: str = "", detach: bool = False) -> list[str]:
     from .model_manager import get_models_dir
     models_dir = str(get_models_dir())
     
@@ -72,8 +95,9 @@ def build_server_cmd(engine: str, image: str, model_path: str, context_size: int
     rdma_args = get_server_rdma_args(engine, platform_id)
     engine_args = extend_missing_option_pairs(engine_args, rdma_args)
 
+    detach_flag = "-d" if detach else "-it"
     cmd = [
-        engine, "run", "--rm", "-it", "--name", "llama-cockpit-server"
+        engine, "run", "--rm", detach_flag, "--name", SERVER_CONTAINER_NAME
     ]
     cmd.extend(engine_args)
     

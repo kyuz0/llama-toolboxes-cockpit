@@ -10,13 +10,15 @@ import time
 
 from src.toolbox_manager import get_all_toolboxes, get_installed_toolboxes, detect_engines, get_os_toolbox_cmd, get_remote_image_date, is_remote_image_newer, create_toolbox, delete_toolbox
 from src.model_manager import scan_local_models, get_hf_quants, get_download_cmd, get_models_dir, save_models_dir, is_quant_downloaded, get_active_platform, save_active_platform, get_default_toolbox, save_default_toolbox, get_benchmark_results_dir, save_benchmark_results_dir
-from src.server_runner import build_server_cmd
+from src.server_runner import build_server_cmd, is_server_running
 from src.benchmark_runner import BenchmarkSettings, build_benchmark_jobs, run_benchmark_job, write_curve_summary
 from src.config import load_models, get_platforms, get_platform, get_platform_registry, get_model_config, get_inference_profiles, get_mtp_config
 from src.widgets import ConfirmModal, SelectModal, SearchableSelect
 import pyfiglet
 
 import importlib.metadata
+
+SERVER_CONTAINER_NAME = "llama-cockpit-server"
 
 def generate_banner() -> str:
     ascii_art = pyfiglet.figlet_format("Llama.cpp Cockpit", font="small")
@@ -552,7 +554,13 @@ class LlamaCockpitApp(App):
                         classes="inline-row"
                     ),
                     Horizontal(
+                        Checkbox("Detach (run in background)", id="chk_detach", value=True),
+                        classes="options-row"
+                    ),
+                    Horizontal(
                         Button("Start Server", id="btn_start_server", variant="primary"),
+                        Button("Stop Server", id="btn_stop_server", variant="error"),
+                        Button("Logs", id="btn_server_logs"),
                         id="btn_row"
                     )
                 )
@@ -660,6 +668,8 @@ class LlamaCockpitApp(App):
         self.refresh_toolboxes()
         self.refresh_models()
         self.check_app_updates()
+        self._update_server_buttons()
+        self.set_interval(1, self._update_server_buttons)
         
         engines = detect_engines()
         sel_engine = self.query_one("#sel_engine", SearchableSelect)
@@ -725,6 +735,27 @@ class LlamaCockpitApp(App):
                         self.app.call_from_thread(self.notify, msg, title="Cockpit Update Available", severity="information", timeout=15)
         except Exception:
             pass
+
+    def _update_server_buttons(self):
+        engine = self.query_one("#sel_engine", SearchableSelect).value
+        running = False
+        if engine:
+            running = is_server_running(engine)
+
+        use_detach = self.query_one("#chk_detach", Checkbox).value
+
+        btn_start = self.query_one("#btn_start_server", Button)
+        btn_stop = self.query_one("#btn_stop_server", Button)
+        btn_logs = self.query_one("#btn_server_logs", Button)
+
+        if running and use_detach:
+            btn_start.styles.display = "none"
+            btn_stop.styles.display = "block"
+            btn_logs.styles.display = "block"
+        else:
+            btn_start.styles.display = "block"
+            btn_stop.styles.display = "none"
+            btn_logs.styles.display = "none"
 
     def _update_platform_label(self):
         platform = get_platform(self.active_platform_id)
@@ -986,6 +1017,7 @@ class LlamaCockpitApp(App):
     @on(SearchableSelect.Changed, "#sel_engine")
     def on_engine_selected(self, event: SearchableSelect.Changed):
         self.refresh_server_images()
+        self._update_server_buttons()
 
     @on(SearchableSelect.Changed, "#sel_image")
     def on_image_selected(self, event: SearchableSelect.Changed):
@@ -1287,6 +1319,8 @@ class LlamaCockpitApp(App):
             "btn_create_update": self._handle_create_update,
             "btn_enter": self._handle_enter_toolbox,
             "btn_start_server": self._handle_start_server,
+            "btn_stop_server": self._handle_stop_server,
+            "btn_server_logs": self._handle_server_logs,
             "btn_save_models_path": self._handle_save_models_path,
             "btn_download": self._handle_download,
             "btn_switch_platform": self._handle_switch_platform,
@@ -1456,6 +1490,11 @@ class LlamaCockpitApp(App):
 
     def _handle_start_server(self):
         engine = self.query_one("#sel_engine", SearchableSelect).value
+
+        if engine and is_server_running(engine):
+            self.notify(f"Server container '{SERVER_CONTAINER_NAME}' is already running.", severity="error")
+            return
+
         image = self.query_one("#sel_image", SearchableSelect).value
         model_path = self.query_one("#sel_model", SearchableSelect).value
         ctx = self.query_one("#inp_ctx", Input).value
@@ -1492,6 +1531,7 @@ class LlamaCockpitApp(App):
 
         use_kv_cache = self.query_one("#chk_kv_cache", Checkbox).value
         kv_cache_type = str(self.query_one("#sel_kv_cache_type", SearchableSelect).value) if use_kv_cache else ""
+        use_detach = self.query_one("#chk_detach", Checkbox).value
 
         if engine and image and model_path and ctx.isdigit():
             ngl_val = int(ngl) if ngl.isdigit() else 999
@@ -1509,31 +1549,68 @@ class LlamaCockpitApp(App):
                 hip_devices=hip_devices, 
                 platform_id=self.active_platform_id, 
                 engine_args=engine_args,
-                kv_cache_type=kv_cache_type
+                kv_cache_type=kv_cache_type,
+                detach=use_detach
             )
-            with self.suspend():
-                if any(str(arg).startswith("/dev/infiniband") for arg in cmd):
-                    print("\n🔎 InfiniBand/RDMA detected — enabling RDMA for native server mode.")
-                print(f"\nStarting server with command:\n{shlex.join(cmd)}\n")
-                print("Press Ctrl+C to stop the server and return to the UI.\n")
-                
+            
+            subprocess.run([engine, "rm", "-f", SERVER_CONTAINER_NAME], capture_output=True)
+            
+            if any(str(arg).startswith("/dev/infiniband") for arg in cmd):
+                self.notify("InfiniBand/RDMA detected — enabling RDMA for native server mode.", severity="info")
+            
+            if use_detach:
+                subprocess.Popen(cmd)
+                self.notify(f"Server started in background. Container: {SERVER_CONTAINER_NAME}", severity="success")
+            else:
                 import signal
-                # Clean up any stale container first
-                subprocess.run([engine, "rm", "-f", "llama-cockpit-server"], capture_output=True)
-                
-                old_handler = signal.signal(signal.SIGINT, signal.default_int_handler)
-                try:
-                    proc = subprocess.Popen(cmd)
-                    proc.wait()
-                except KeyboardInterrupt:
-                    # Ignore further Ctrl+C during cleanup to prevent aborting the cleanup
-                    signal.signal(signal.SIGINT, signal.SIG_IGN)
-                    print("\nInterrupt received. Force stopping server (this may take a few seconds)...")
-                    subprocess.run([engine, "rm", "-f", "llama-cockpit-server"], capture_output=True)
-                    proc.kill()
-                    proc.wait()
-                finally:
-                    signal.signal(signal.SIGINT, old_handler)
+                import os
+                with self.suspend():
+                    print(f"\nStarting server with command:\n{shlex.join(cmd)}\n")
+                    print("Press Ctrl+C to stop the server and return to the UI.\n")
+                    
+                    old_handler = signal.signal(signal.SIGINT, signal.default_int_handler)
+                    try:
+                        signal.signal(signal.SIGINT, signal.default_int_handler)
+                        os.system(shlex.join(cmd))
+                    except KeyboardInterrupt:
+                        print("\nStopping server...")
+                        subprocess.run([engine, "rm", "-f", SERVER_CONTAINER_NAME], capture_output=True)
+                    finally:
+                        signal.signal(signal.SIGINT, old_handler)
+            
+            self._update_server_buttons()
+
+    def _handle_stop_server(self):
+        engine = self.query_one("#sel_engine", SearchableSelect).value
+        if not engine:
+            self.notify("No container engine selected.", severity="error")
+            return
+
+        with self.suspend():
+            print(f"\nStopping server container '{SERVER_CONTAINER_NAME}'...")
+            result = subprocess.run([engine, "rm", "-f", SERVER_CONTAINER_NAME], capture_output=True, text=True)
+            if result.returncode == 0:
+                print(f"Server container '{SERVER_CONTAINER_NAME}' stopped.")
+            else:
+                print(f"Failed to stop server: {result.stderr}")
+
+        self._update_server_buttons()
+
+    def _handle_server_logs(self):
+        engine = self.query_one("#sel_engine", SearchableSelect).value
+        if not engine:
+            self.notify("No container engine selected.", severity="error")
+            return
+
+        with self.suspend():
+            print(f"\n--- Logs for server container '{SERVER_CONTAINER_NAME}' ---")
+            print("(Press Ctrl+C to exit)\n")
+            try:
+                subprocess.run([engine, "logs", "-f", SERVER_CONTAINER_NAME])
+            except KeyboardInterrupt:
+                print("\nExiting logs...")
+
+        self._update_server_buttons()
 
     # ── Toggle Select All ─────────────────────────────────────────
 
