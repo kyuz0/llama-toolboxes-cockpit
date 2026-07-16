@@ -8,7 +8,7 @@ import shlex
 import subprocess
 import time
 
-from src.toolbox_manager import get_all_toolboxes, get_installed_toolboxes, detect_engines, get_os_toolbox_cmd, get_remote_image_date, is_remote_image_newer, create_toolbox, delete_toolbox
+from src.toolbox_manager import get_all_toolboxes, get_installed_toolboxes, detect_engines, get_os_toolbox_cmd, get_remote_image_date, is_remote_image_newer, create_toolbox, delete_toolbox, enter_toolbox
 from src.model_manager import scan_local_models, get_hf_quants, get_download_cmd, get_models_dir, save_models_dir, is_quant_downloaded, get_active_platform, save_active_platform, get_default_toolbox, save_default_toolbox, get_benchmark_results_dir, save_benchmark_results_dir
 from src.server_runner import build_server_cmd
 from src.benchmark_runner import BenchmarkSettings, build_benchmark_jobs, run_benchmark_job, write_curve_summary
@@ -470,7 +470,7 @@ class LlamaCockpitApp(App):
         with TabbedContent(initial="tab-toolboxes"):
             with TabPane("Interactive Toolboxes", id="tab-toolboxes"):
                 yield Vertical(
-                    Static("Manage and enter llama.cpp toolbox containers. The cockpit auto-detects your OS and selects the correct backend (toolbox on Fedora/RHEL, distrobox on Ubuntu/Arch).", classes="box"),
+                    Static("Manage and enter llama.cpp toolbox containers. The cockpit selects a compatible Toolbx/Podman or Distrobox/Podman/Docker backend for your host.", classes="box"),
                     VerticalScroll(id="toolbox_container"),
                     Horizontal(
                         Button("Enter", id="btn_enter", variant="success"),
@@ -1448,9 +1448,8 @@ class LlamaCockpitApp(App):
         if tb["status"] == "Not Installed":
             self.notify("Cannot enter a toolbox that is not installed.", severity="warning")
             return
-        cmd = get_os_toolbox_cmd()
         with self.suspend():
-            os.system(f"{cmd} enter {tb['name']}")
+            enter_toolbox(tb["name"])
 
     # ── Server Handler ────────────────────────────────────────────
 

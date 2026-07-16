@@ -18,9 +18,9 @@ Each platform ships its own set of pre-built containers (ROCm + Vulkan backends)
 ## Features
 
 - **Multi-Platform Support**: Switch between AMD hardware platforms from the banner. Each platform has its own registry, toolbox images, and backend configurations.
-- **Interactive Toolboxes**: Create, enter, update, or batch-delete Llama.cpp CLI containers via `toolbox` (Fedora/RHEL) or `distrobox` (Ubuntu/Arch). The cockpit auto-detects your OS.
+- **Interactive Toolboxes**: Create, enter, update, or batch-delete Llama.cpp CLI containers via Toolbx with Podman or Distrobox with Podman/Docker. The cockpit selects a compatible backend for the host.
 - **Server Mode**: Launch a Llama.cpp OpenAI-compatible inference server directly from a container image — pick engine, image, model, context size, and extra args from the UI.
-- **RDMA/RoCE**: Detect InfiniBand devices for Strix Halo Toolbx and native Podman/Docker server runs.
+- **RDMA/RoCE**: Detect InfiniBand devices for Strix Halo interactive containers and native Podman/Docker server runs.
 - **Benchmark Mode**: Measure fixed prefill and generation workloads at identical configurable starting KV depths, saving raw `llama-bench` JSONL and a combined CSV.
 - **Model Manager**: Scan your local `~/models` directory for GGUF files, download curated models from Hugging Face, and manage sharded multi-file models.
 - **Update Checker**: Check Docker Hub for newer image builds and batch-update toolboxes in one action.
@@ -42,6 +42,15 @@ pipx install git+https://github.com/kyuz0/llama-toolboxes-cockpit.git
 
 ```bash
 llama-cockpit
+```
+
+Interactive containers use Toolbx with Podman when that combination is
+available on Fedora-family hosts. Distrobox is preferred on Debian/Ubuntu and
+supports either Podman or Docker. If both engines are installed and you want a
+Docker-backed Distrobox, launch with:
+
+```bash
+DBX_CONTAINER_MANAGER=docker llama-cockpit
 ```
 
 ### Benchmark methodology
