@@ -920,7 +920,9 @@ class LlamaCockpitApp(App):
                     status_fmt = "[green]Running[/green]" if "Up" in tb.get("status", "") else "[dim]Downloaded[/dim]"
                 
                 desc = tb.get('description', '')
-                if default_tag and default_tag in tb.get('image', ''):
+                image = tb.get('image', '')
+                image_tag = image.split(':')[-1] if ':' in image else ''
+                if default_tag and image_tag == default_tag:
                     desc = f"[bold #e57373](Default)[/] {desc}"
                 
                 sel_fmt = "\\[x]" if tb['name'] in getattr(self, 'selected_toolboxes', set()) else "\\[ ]"
@@ -978,7 +980,8 @@ class LlamaCockpitApp(App):
             selected = images[0]
             if default_tag:
                 for img in images:
-                    if default_tag in img:
+                    img_tag = img.split(':')[-1] if ':' in img else ''
+                    if img_tag == default_tag:
                         selected = img
                         break
             sel_image.value = selected
@@ -1251,17 +1254,17 @@ class LlamaCockpitApp(App):
         except Exception:
             selected_image = ""
             
-        is_rocmfp4_image = "rocmfp4" in str(selected_image).lower()
+        is_rocmfpx_image = "rocmfp4" in str(selected_image).lower() or "rocmfpx" in str(selected_image).lower()
         
         for m in models:
             dt.add_row(m["name"])
             
-            is_rocmfp4_model = "rocmfp4" in m["name"].lower()
-            if is_rocmfp4_image:
-                if not is_rocmfp4_model:
+            is_rocmfpx_model = "rocmfp4" in m["name"].lower() or "rocmfpx" in m["name"].lower()
+            if is_rocmfpx_image:
+                if not is_rocmfpx_model:
                     continue
             else:
-                if is_rocmfp4_model:
+                if is_rocmfpx_model:
                     continue
                     
             model_opts.append((m["name"], m["path"]))
