@@ -137,9 +137,9 @@
               ]
             },
             {
-              "name": "llama-rocm-7.2.4-rocmfp4",
-              "tag": "rocm-7.2.4-rocmfp4",
-              "description": "Experimental ROCm FP4 build",
+              "name": "llama-rocm-7.2.4-rocmfpx",
+              "tag": "rocm-7.2.4-rocmfpx",
+              "description": "ROCmFPX build — ROCmFP3/FP4/FP6/FP8 weight formats with MTP (ROCm 7.2.4)",
               "engine_args": [
                 "--device",
                 "/dev/dri",
@@ -151,6 +151,19 @@
                 "render",
                 "--group-add",
                 "sudo",
+                "--security-opt",
+                "seccomp=unconfined"
+              ]
+            },
+            {
+              "name": "llama-vulkan-rocmfpx",
+              "tag": "vulkan-rocmfpx",
+              "description": "ROCmFPX build — ROCmFP3/FP4/FP6/FP8 weight formats with MTP (Vulkan only)",
+              "engine_args": [
+                "--device",
+                "/dev/dri",
+                "--group-add",
+                "video",
                 "--security-opt",
                 "seccomp=unconfined"
               ]
