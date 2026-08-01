@@ -5,15 +5,15 @@
       "name": "AMD Strix Halo",
       "description": "Ryzen AI Max (gfx1151)",
       "registry": "docker.io/kyuz0/amd-strix-halo-toolboxes",
-      "default_toolbox_tag": "rocm-7.2.4",
+      "default_toolbox_tag": "rocm-7.14",
       "groups": [
         {
           "name": "Official Toolboxes",
           "toolboxes": [
             {
-              "name": "llama-rocm-7.2.4",
-              "tag": "rocm-7.2.4",
-              "description": "Stable ROCm 7.2.4 backend (recommended)",
+              "name": "llama-rocm-7.14",
+              "tag": "rocm-7.14",
+              "description": "Stable ROCm 7.14 backend (recommended)",
               "engine_args": [
                 "--device",
                 "/dev/dri",
@@ -99,9 +99,9 @@
               ]
             },
             {
-              "name": "llama-rocm7-nightlies",
-              "tag": "rocm7-nightlies",
-              "description": "TheROCk nightly builds — bleeding edge, may contain bugs",
+              "name": "llama-therock-nightly",
+              "tag": "therock-nightly",
+              "description": "TheRock nightly builds — bleeding edge, may contain bugs",
               "engine_args": [
                 "--device",
                 "/dev/dri",
