@@ -14,6 +14,7 @@
               "name": "llama-rocm-7.14",
               "tag": "rocm-7.14",
               "description": "Stable ROCm 7.14 backend (recommended)",
+              "supports_load_mode": true,
               "engine_args": [
                 "--device",
                 "/dev/dri",
@@ -33,6 +34,7 @@
               "name": "llama-rocm-6.4.4",
               "tag": "rocm-6.4.4",
               "description": "Stable ROCm 6.4.4 backend",
+              "supports_load_mode": true,
               "engine_args": [
                 "--device",
                 "/dev/dri",
@@ -52,6 +54,7 @@
               "name": "llama-vulkan-radv",
               "tag": "vulkan-radv",
               "description": "Mesa RADV Vulkan backend",
+              "supports_load_mode": true,
               "engine_args": [
                 "--device",
                 "/dev/dri",
@@ -65,6 +68,7 @@
               "name": "llama-vulkan-amdvlk",
               "tag": "vulkan-amdvlk",
               "description": "AMDVLK Vulkan backend",
+              "supports_load_mode": true,
               "engine_args": [
                 "--device",
                 "/dev/dri",
@@ -102,6 +106,7 @@
               "name": "llama-therock-nightly",
               "tag": "therock-nightly",
               "description": "TheRock nightly builds — bleeding edge, may contain bugs",
+              "supports_load_mode": true,
               "engine_args": [
                 "--device",
                 "/dev/dri",
@@ -287,6 +292,7 @@
               "name": "b70-llama-sycl",
               "tag": "sycl",
               "description": "oneAPI SYCL backend (recommended)",
+              "supports_load_mode": true,
               "engine_args": [
                 "--device",
                 "/dev/dri",
@@ -302,6 +308,7 @@
               "name": "b70-llama-vulkan",
               "tag": "vulkan",
               "description": "Vulkan backend",
+              "supports_load_mode": true,
               "engine_args": [
                 "--device",
                 "/dev/dri",

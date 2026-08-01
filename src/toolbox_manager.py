@@ -315,6 +315,7 @@ def get_all_toolboxes(registry_match: str, config_data: dict) -> dict:
             name = ctb["name"]
             tag = ctb.get("tag", "latest")
             desc = ctb.get("description", "")
+            supports_load_mode = bool(ctb.get("supports_load_mode", False))
             image = f"{registry_match}:{tag}"
             
             if name in installed_dict:
@@ -322,6 +323,7 @@ def get_all_toolboxes(registry_match: str, config_data: dict) -> dict:
                 tb["args"] = ctb.get("engine_args", [])
                 tb["description"] = desc
                 tb["group"] = group_name
+                tb["supports_load_mode"] = supports_load_mode
                 grouped_toolboxes[group_name].append(tb)
                 del installed_dict[name]
             else:
@@ -333,7 +335,8 @@ def get_all_toolboxes(registry_match: str, config_data: dict) -> dict:
                     "created": "",
                     "engine": engine,
                     "args": ctb.get("engine_args", []),
-                    "group": group_name
+                    "group": group_name,
+                    "supports_load_mode": supports_load_mode
                 })
                 
     unsupported = []
@@ -341,6 +344,7 @@ def get_all_toolboxes(registry_match: str, config_data: dict) -> dict:
         tb["args"] = []
         tb["description"] = ""
         tb["group"] = "Unsupported / Legacy"
+        tb["supports_load_mode"] = False
         if "created" not in tb:
             tb["created"] = ""
         unsupported.append(tb)

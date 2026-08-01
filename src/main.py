@@ -532,7 +532,7 @@ class LlamaCockpitApp(App):
                     ),
                     Horizontal(
                         Checkbox("Flash Attention (-fa 1)", id="chk_fa", value=True),
-                        Checkbox("No Memory Mapping (--no-mmap)", id="chk_no_mmap", value=True),
+                        Checkbox("No Memory Mapping (--load-mode none)", id="chk_no_mmap", value=True),
                         Checkbox("KV Cache Quantization", id="chk_kv_cache", value=False),
                         classes="options-row"
                     ),
@@ -619,7 +619,7 @@ class LlamaCockpitApp(App):
                                 )
                         with Horizontal(id="benchmark_options_row"):
                             yield Checkbox("Flash Attention (-fa 1)", id="chk_benchmark_fa", value=True)
-                            yield Checkbox("No Memory Mapping (-mmp 0)", id="chk_benchmark_no_mmap", value=True)
+                            yield Checkbox("No Memory Mapping (--load-mode none)", id="chk_benchmark_no_mmap", value=True)
                             yield Checkbox("KV Cache Quantization", id="chk_benchmark_kv_cache", value=False)
                         with Horizontal(id="benchmark_kv_cache_row"):
                             yield Label("KV Cache Type", classes="inline-label")
@@ -1499,10 +1499,12 @@ class LlamaCockpitApp(App):
             ngl_val = int(ngl) if ngl.isdigit() else 999
             
             engine_args = None
+            supports_load_mode = False
             if hasattr(self, "toolboxes_dict"):
                 for tb in self.toolboxes_dict.values():
                     if tb.get("image") == image:
                         engine_args = tb.get("args")
+                        supports_load_mode = bool(tb.get("supports_load_mode", False))
                         break
 
             cmd = build_server_cmd(
@@ -1511,7 +1513,8 @@ class LlamaCockpitApp(App):
                 hip_devices=hip_devices, 
                 platform_id=self.active_platform_id, 
                 engine_args=engine_args,
-                kv_cache_type=kv_cache_type
+                kv_cache_type=kv_cache_type,
+                supports_load_mode=supports_load_mode
             )
             with self.suspend():
                 if any(str(arg).startswith("/dev/infiniband") for arg in cmd):
@@ -1655,6 +1658,10 @@ class LlamaCockpitApp(App):
                     "#inp_benchmark_vulkan_ubatch", "Vulkan ubatch override"
                 ),
                 extra_args=self.query_one("#inp_benchmark_extra_args", Input).value.strip(),
+                load_mode_toolboxes=frozenset(
+                    name for name in self.selected_benchmark_toolboxes
+                    if self.toolboxes_dict.get(name, {}).get("supports_load_mode", False)
+                ),
             )
             # Validate quoting in custom arguments before suspending the UI.
             if settings.extra_args:

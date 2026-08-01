@@ -26,6 +26,7 @@ class BenchmarkSettings:
     rocm_ubatch: int | None = None
     vulkan_ubatch: int | None = None
     extra_args: str = ""
+    load_mode_toolboxes: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -90,7 +91,12 @@ def build_benchmark_jobs(
                 command.extend([
                     "llama-bench",
                     "-ngl", "99",
-                    "-mmp", "1" if settings.use_mmap else "0",
+                ])
+                if toolbox_name in settings.load_mode_toolboxes:
+                    command.extend(["--load-mode", "mmap" if settings.use_mmap else "none"])
+                else:
+                    command.extend(["-mmp", "1" if settings.use_mmap else "0"])
+                command.extend([
                     "-m", model_path,
                     "-fa", "1" if settings.flash_attention else "0",
                     "-p", str(prompt_tokens),

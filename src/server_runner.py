@@ -31,7 +31,7 @@ def get_server_rdma_args(
 
     return []
 
-def build_server_cmd(engine: str, image: str, model_path: str, context_size: int, use_fa: bool, use_no_mmap: bool, custom_args: str, host: str = "localhost", port: str = "8080", ngl: int = 999, hip_devices: str = "", platform_id: str = "", engine_args: list[str] = None, kv_cache_type: str = "") -> list[str]:
+def build_server_cmd(engine: str, image: str, model_path: str, context_size: int, use_fa: bool, use_no_mmap: bool, custom_args: str, host: str = "localhost", port: str = "8080", ngl: int = 999, hip_devices: str = "", platform_id: str = "", engine_args: list[str] = None, kv_cache_type: str = "", supports_load_mode: bool = False) -> list[str]:
     from .model_manager import get_models_dir
     models_dir = str(get_models_dir())
     
@@ -123,7 +123,9 @@ def build_server_cmd(engine: str, image: str, model_path: str, context_size: int
         "--port", str(port)
     ])
     
-    if use_no_mmap:
+    if supports_load_mode:
+        cmd.extend(["--load-mode", "none" if use_no_mmap else "mmap"])
+    elif use_no_mmap:
         cmd.append("--no-mmap")
         
     if use_fa:

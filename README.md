@@ -123,6 +123,7 @@ To add support for a new GPU platform, add a new entry to `src/assets/toolboxes.
           "name": "my-llama-rocm-7.2.2",
           "tag": "rocm-7.2.2",
           "description": "ROCm 7.2.2 backend",
+          "supports_load_mode": true,
           "engine_args": ["--device", "/dev/dri", "..."]
         }
       ]
@@ -131,4 +132,7 @@ To add support for a new GPU platform, add a new entry to `src/assets/toolboxes.
 }
 ```
 
-No code changes required — the cockpit picks up new platforms automatically.
+Set `supports_load_mode` to `true` when the image's `llama-server` and
+`llama-bench` support `--load-mode`; otherwise omit it to retain the legacy
+`--no-mmap` / `-mmp` arguments. No code changes are required — the cockpit
+picks up new platforms automatically.
