@@ -84,6 +84,20 @@
           "name": "Dev/Experimental Toolboxes",
           "toolboxes": [
             {
+              "name": "llama-vulkan-radv-perfromance",
+              "tag": "vulkan-radv-perfromance",
+              "description": "Strix Halo Vulkan performance fork (Experimental)",
+              "supports_load_mode": true,
+              "engine_args": [
+                "--device",
+                "/dev/dri",
+                "--group-add",
+                "video",
+                "--security-opt",
+                "seccomp=unconfined"
+              ]
+            },
+            {
               "name": "llama-rocm-7.2.2-pr21344",
               "tag": "rocm-7.2.2-pr21344",
               "description": "ROCm PR 21344 builds (Experimental)",
