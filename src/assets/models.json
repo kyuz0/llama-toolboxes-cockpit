@@ -2,6 +2,14 @@
   {
     "name": "DeepSeek V4 Flash 0731",
     "repo": "unsloth/DeepSeek-V4-Flash-0731-GGUF",
+    "benchmark": {
+      "preferred_ubatch": {
+        "strix-halo": {
+          "rocm": 2048,
+          "vulkan": 1024
+        }
+      }
+    },
     "inference_profiles": {
       "Thinking (Effort: Max)": {
         "description": "Recommended for tasks requiring maximal reasoning effort",
@@ -151,7 +159,10 @@
     "repo": "unsloth/Qwen3.6-27B-MTP-GGUF",
     "benchmark": {
       "preferred_ubatch": {
-        "strix-halo": { "rocm": 256 }
+        "strix-halo": {
+          "rocm": 1024,
+          "vulkan": 256
+        }
       }
     },
     "mtp": {
@@ -183,7 +194,10 @@
     "repo": "unsloth/Qwen3.6-35B-A3B-MTP-GGUF",
     "benchmark": {
       "preferred_ubatch": {
-        "strix-halo": { "rocm": 2048 }
+        "strix-halo": {
+          "rocm": 2048,
+          "vulkan": 2048
+        }
       }
     },
     "mtp": {

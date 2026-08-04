@@ -32,7 +32,7 @@ class UbatchCalibrationTest(unittest.TestCase):
     def test_jobs_cover_every_depth_with_prefill_only(self):
         jobs = build_calibration_jobs(
             toolbox_command="toolbox",
-            toolbox_name="llama-vulkan-radv-perfromance",
+            toolbox_name="llama-vulkan-radv-performance",
             model_path="/models/model.gguf",
             output_dir=Path("/tmp/results"),
             ubatches=(256, 512, 1024, 2048),

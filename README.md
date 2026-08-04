@@ -115,6 +115,18 @@ platform, backend family, and exact model filename. A benchmark ubatch override
 or explicit server `-ub` argument still takes precedence. Image digests are not
 part of the calibration key.
 
+The cockpit ships these measured Strix Halo defaults, used when no local
+calibration exists:
+
+| Model catalog entry | ROCm | Vulkan |
+| --- | ---: | ---: |
+| DeepSeek V4 Flash 0731 | 2048 | 1024 |
+| Qwen 3.6 27B MTP | 1024 | 256 |
+| Qwen 3.6 35B A3B MTP | 2048 | 2048 |
+
+Local calibration overrides these values. An explicit benchmark ubatch or
+server `-ub` argument still overrides both.
+
 ### Configuration
 
 User preferences are stored in `~/.llama-cockpit.conf`:

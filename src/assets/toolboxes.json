@@ -84,8 +84,8 @@
           "name": "Dev/Experimental Toolboxes",
           "toolboxes": [
             {
-              "name": "llama-vulkan-radv-perfromance",
-              "tag": "vulkan-radv-perfromance",
+              "name": "llama-vulkan-radv-performance",
+              "tag": "vulkan-radv-performance",
               "description": "Strix Halo Vulkan performance fork (Experimental)",
               "supports_load_mode": true,
               "engine_args": [
