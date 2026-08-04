@@ -2,6 +2,8 @@ import json
 import os
 from pathlib import Path
 
+from .ubatch_profiles import get_calibrated_ubatch
+
 ROOT_DIR = Path(__file__).parent
 ASSETS_DIR = ROOT_DIR / "assets"
 MODELS_JSON = ASSETS_DIR / "models.json"
@@ -101,10 +103,16 @@ def get_mtp_config(model_config: dict) -> dict | None:
     return None
 
 
-def get_preferred_benchmark_ubatch(
+def get_preferred_ubatch(
     model_path: str, platform_id: str, backend: str
 ) -> int | None:
-    """Return a measured, platform-specific ubatch or let llama.cpp choose."""
+    """Return a local calibration, then a shipped default, or let llama.cpp choose."""
+    try:
+        calibrated = get_calibrated_ubatch(model_path, platform_id, backend)
+    except (OSError, ValueError):
+        calibrated = None
+    if calibrated:
+        return calibrated
     model_config = get_model_config(model_path)
     if not model_config:
         return None
@@ -115,3 +123,10 @@ def get_preferred_benchmark_ubatch(
         .get(backend)
     )
     return value if isinstance(value, int) and value > 0 else None
+
+
+def get_preferred_benchmark_ubatch(
+    model_path: str, platform_id: str, backend: str
+) -> int | None:
+    """Backward-compatible alias for the shared benchmark/inference setting."""
+    return get_preferred_ubatch(model_path, platform_id, backend)

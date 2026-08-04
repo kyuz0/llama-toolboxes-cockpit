@@ -49,13 +49,13 @@ def context_depths(settings: BenchmarkSettings) -> tuple[int, ...]:
     return (0, *range(settings.context_step, settings.max_context + 1, settings.context_step))
 
 
-def _toolbox_prefix(toolbox_command: str, toolbox_name: str) -> list[str]:
+def toolbox_prefix(toolbox_command: str, toolbox_name: str) -> list[str]:
     if os.path.basename(toolbox_command) == "toolbox":
         return [toolbox_command, "run", "-c", toolbox_name, "--"]
     return [toolbox_command, "enter", toolbox_name, "--"]
 
 
-def _safe_filename_part(value: str) -> str:
+def safe_filename_part(value: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "_", value).strip("._") or "benchmark"
 
 
@@ -72,10 +72,10 @@ def build_benchmark_jobs(
 
     for model_pattern in model_paths:
         model_path = resolve_model_path(model_pattern)
-        model_name = _safe_filename_part(Path(model_path).stem)
+        model_name = safe_filename_part(Path(model_path).stem)
 
         for toolbox_name in toolbox_names:
-            toolbox_part = _safe_filename_part(toolbox_name)
+            toolbox_part = safe_filename_part(toolbox_name)
             is_vulkan = "vulkan" in toolbox_name.lower()
             backend = "vulkan" if is_vulkan else "rocm"
             override = settings.vulkan_ubatch if is_vulkan else settings.rocm_ubatch
@@ -87,7 +87,7 @@ def build_benchmark_jobs(
                 ("prefill", settings.prefill, 0, depth_values),
                 ("generation", 0, settings.generation, depth_values),
             ):
-                command = _toolbox_prefix(toolbox_command, toolbox_name)
+                command = toolbox_prefix(toolbox_command, toolbox_name)
                 command.extend([
                     "llama-bench",
                     "-ngl", "99",
@@ -113,7 +113,7 @@ def build_benchmark_jobs(
                 if settings.use_mmap:
                     suffix += "__mmap1"
                 if settings.kv_cache_type:
-                    suffix += f"__kv-{_safe_filename_part(settings.kv_cache_type)}"
+                    suffix += f"__kv-{safe_filename_part(settings.kv_cache_type)}"
                 if ubatch:
                     command.extend(["-ub", str(ubatch)])
                     suffix += f"__ub{ubatch}"

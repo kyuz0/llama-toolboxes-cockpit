@@ -614,7 +614,7 @@ class LlamaCockpitApp(App):
                                     yield Input(placeholder="Auto", id="inp_benchmark_rocm_ubatch")
                                     yield Input(placeholder="Auto", id="inp_benchmark_vulkan_ubatch")
                                 yield Static(
-                                    "Auto uses a measured model/platform value when available; otherwise llama.cpp's default.",
+                                    "Auto uses the saved model/backend calibration when available; otherwise a shipped default or llama.cpp's default.",
                                     classes="field-help",
                                 )
                         with Horizontal(id="benchmark_options_row"):

@@ -21,6 +21,7 @@ dependencies = [
 
 [project.scripts]
 llama-cockpit = "src.main:cli_main"
+llama-cockpit-calibrate-ubatch = "src.ubatch_calibration:main"
 
 [tool.setuptools]
 packages = [

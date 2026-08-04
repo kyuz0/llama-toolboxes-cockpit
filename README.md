@@ -93,6 +93,28 @@ itself. Existing non-empty result files are skipped, so use a fresh results
 directory when changing depths, workload sizes, repetitions, or extra
 `llama-bench` arguments.
 
+### Ubatch calibration
+
+Calibrate one model/backend before comparing toolboxes:
+
+```bash
+llama-cockpit-calibrate-ubatch \
+  --toolbox llama-rocm-7.14 \
+  --model ~/models/Qwen3.6-27B-MTP-GGUF/Qwen3.6-27B-UD-Q8_K_XL.gguf
+```
+
+The command tests ubatches `256`, `512`, `1024`, and `2048` using the normal
+nine-depth prefill curve and three repetitions. It selects the complete
+candidate with the best depth-normalized throughput. Raw JSONL/log files remain
+under the configured benchmark-results directory, and the measurements plus
+selected value are recorded in
+`~/.config/llama-cockpit/ubatch-calibrations.json`.
+
+Benchmark and server modes use the recorded value automatically for the same
+platform, backend family, and exact model filename. A benchmark ubatch override
+or explicit server `-ub` argument still takes precedence. Image digests are not
+part of the calibration key.
+
 ### Configuration
 
 User preferences are stored in `~/.llama-cockpit.conf`:

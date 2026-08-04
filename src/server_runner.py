@@ -1,9 +1,20 @@
 import os
 from pathlib import Path
+from .config import get_preferred_ubatch
 from .model_manager import resolve_model_path
 from .toolbox_manager import extend_missing_option_pairs, upgrade_groups_for_podman
+from .ubatch_profiles import backend_from_name
 
 import shlex
+
+
+def _has_ubatch_override(args: list[str]) -> bool:
+    return any(
+        arg in {"-ub", "--ubatch-size"}
+        or arg.startswith("-ub=")
+        or arg.startswith("--ubatch-size=")
+        for arg in args
+    )
 
 def get_server_rdma_args(
     engine: str,
@@ -133,8 +144,14 @@ def build_server_cmd(engine: str, image: str, model_path: str, context_size: int
     
     if kv_cache_type:
         cmd.extend(["--cache-type-k", kv_cache_type, "--cache-type-v", kv_cache_type])
-        
-    if custom_args:
-        cmd.extend(shlex.split(custom_args))
+
+    custom_tokens = shlex.split(custom_args) if custom_args else []
+    backend = backend_from_name(image)
+    if backend and not _has_ubatch_override(custom_tokens):
+        ubatch = get_preferred_ubatch(actual_file, platform_id, backend)
+        if ubatch:
+            cmd.extend(["-ub", str(ubatch)])
+
+    cmd.extend(custom_tokens)
     
     return cmd
