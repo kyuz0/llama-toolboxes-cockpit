@@ -42,7 +42,7 @@ def get_server_rdma_args(
 
     return []
 
-def build_server_cmd(engine: str, image: str, model_path: str, context_size: int, use_fa: bool, use_no_mmap: bool, custom_args: str, host: str = "localhost", port: str = "8080", ngl: int = 999, hip_devices: str = "", platform_id: str = "", engine_args: list[str] = None, kv_cache_type: str = "", supports_load_mode: bool = False) -> list[str]:
+def build_server_cmd(engine: str, image: str, model_path: str, context_size: int, use_fa: bool, use_no_mmap: bool, custom_args: str, host: str = "localhost", port: str = "8080", ngl: int = 999, hip_devices: str = "", platform_id: str = "", engine_args: list[str] = None, kv_cache_type: str = "", supports_load_mode: bool = False, api_key: str = "") -> list[str]:
     from .model_manager import get_models_dir
     models_dir = str(get_models_dir())
     
@@ -144,6 +144,9 @@ def build_server_cmd(engine: str, image: str, model_path: str, context_size: int
     
     if kv_cache_type:
         cmd.extend(["--cache-type-k", kv_cache_type, "--cache-type-v", kv_cache_type])
+
+    if api_key:
+        cmd.extend(["--api-key", api_key])
 
     custom_tokens = shlex.split(custom_args) if custom_args else []
     backend = backend_from_name(image)

@@ -547,6 +547,11 @@ class LlamaCockpitApp(App):
                         classes="inline-row"
                     ),
                     Horizontal(
+                        Label("API Key", classes="inline-label"),
+                        Input(placeholder="Optional API key for llama-server", id="inp_api_key", value=""),
+                        classes="inline-row"
+                    ),
+                    Horizontal(
                         Label("Extra Args", classes="inline-label"),
                         Input(placeholder="e.g. --batch-size 512", id="inp_custom_args", value="--jinja"),
                         classes="inline-row"
@@ -1468,6 +1473,7 @@ class LlamaCockpitApp(App):
         use_no_mmap = self.query_one("#chk_no_mmap", Checkbox).value
         custom_args = self.query_one("#inp_custom_args", Input).value
         hip_devices = self.query_one("#inp_hip_devices", Input).value
+        api_key = self.query_one("#inp_api_key", Input).value
 
         # Check compatibility
         is_rocmfp4_image = "rocmfp4" in str(image).lower()
@@ -1514,7 +1520,8 @@ class LlamaCockpitApp(App):
                 platform_id=self.active_platform_id, 
                 engine_args=engine_args,
                 kv_cache_type=kv_cache_type,
-                supports_load_mode=supports_load_mode
+                supports_load_mode=supports_load_mode,
+                api_key=api_key,
             )
             with self.suspend():
                 if any(str(arg).startswith("/dev/infiniband") for arg in cmd):
