@@ -341,6 +341,10 @@
     "no_jinja": true
   },
   {
+    "name": "LFM2.5 1.2B Instruct",
+    "repo": "unsloth/LFM2.5-1.2B-Instruct-GGUF"
+  },
+  {
     "name": "MiniMax M2.7",
     "repo": "unsloth/MiniMax-M2.7-GGUF",
     "inference_profiles": {
