@@ -55,6 +55,38 @@ class UbatchCommandsTest(unittest.TestCase):
             explicit_index = explicit.index("-ub")
             self.assertEqual(explicit[explicit_index + 1], "256")
 
+    def test_server_adds_only_the_explicitly_selected_vision_projector(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            model_dir = Path(temporary) / "Muse-Glimmer-30B-GGUF"
+            model_dir.mkdir()
+            model = model_dir / "Muse-Glimmer-30B-UD-Q4_K_XL.gguf"
+            projector = model_dir / "mmproj-Muse-Glimmer-30B-BF16.gguf"
+            model.touch()
+            projector.touch()
+            kwargs = dict(
+                engine="podman",
+                image="docker.io/example/llama-rocm:latest",
+                model_path=str(model),
+                context_size=65536,
+                use_fa=True,
+                use_no_mmap=True,
+                platform_id="strix-halo",
+                engine_args=[],
+                custom_args="",
+            )
+            with patch("src.model_manager.get_models_dir", return_value=Path(temporary)):
+                text_only = build_server_cmd(**kwargs)
+                vision = build_server_cmd(
+                    vision_projector_path=str(projector), **kwargs
+                )
+
+            self.assertNotIn("--mmproj", text_only)
+            projector_index = vision.index("--mmproj")
+            self.assertEqual(
+                vision[projector_index + 1],
+                "/models/Muse-Glimmer-30B-GGUF/mmproj-Muse-Glimmer-30B-BF16.gguf",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

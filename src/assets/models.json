@@ -32,6 +32,9 @@
   {
     "name": "Qwen 3.5 122B A10B",
     "repo": "unsloth/Qwen3.5-122B-A10B-GGUF",
+    "vision_projector": {
+      "patterns": ["mmproj-*.gguf"]
+    },
     "benchmark": {
       "preferred_ubatch": {
         "strix-halo": { "rocm": 2048 }
@@ -81,6 +84,9 @@
   {
     "name": "Qwen 3.6 35B A3B",
     "repo": "unsloth/Qwen3.6-35B-A3B-GGUF",
+    "vision_projector": {
+      "patterns": ["mmproj-*.gguf"]
+    },
     "benchmark": {
       "preferred_ubatch": {
         "strix-halo": { "rocm": 2048 }
@@ -130,6 +136,9 @@
   {
     "name": "Qwen 3.6 27B",
     "repo": "unsloth/Qwen3.6-27B-GGUF",
+    "vision_projector": {
+      "patterns": ["mmproj-*.gguf"]
+    },
     "benchmark": {
       "preferred_ubatch": {
         "strix-halo": { "rocm": 256 }
@@ -157,6 +166,9 @@
   {
     "name": "Qwen 3.6 27B MTP",
     "repo": "unsloth/Qwen3.6-27B-MTP-GGUF",
+    "vision_projector": {
+      "patterns": ["mmproj-*.gguf"]
+    },
     "benchmark": {
       "preferred_ubatch": {
         "strix-halo": {
@@ -192,6 +204,9 @@
   {
     "name": "Qwen 3.6 35B A3B MTP",
     "repo": "unsloth/Qwen3.6-35B-A3B-MTP-GGUF",
+    "vision_projector": {
+      "patterns": ["mmproj-*.gguf"]
+    },
     "benchmark": {
       "preferred_ubatch": {
         "strix-halo": {
@@ -227,6 +242,9 @@
   {
     "name": "Qwen 3.5 122B A10B MTP",
     "repo": "unsloth/Qwen3.5-122B-A10B-MTP-GGUF",
+    "vision_projector": {
+      "patterns": ["mmproj-*.gguf"]
+    },
     "benchmark": {
       "preferred_ubatch": {
         "strix-halo": { "rocm": 2048 }
@@ -329,11 +347,23 @@
   },
   {
     "name": "GPT OSS 120B",
-    "repo": "unsloth/gpt-oss-120b-GGUF"
+    "repo": "unsloth/gpt-oss-120b-GGUF",
+    "inference_profiles": {
+      "Default": {
+        "description": "Unsloth repository sampling parameters",
+        "args": "--temp 1.0 --top-p 1.0 --top-k 0 --min-p 0.0"
+      }
+    }
   },
   {
     "name": "GPT OSS 20B",
-    "repo": "unsloth/gpt-oss-20b-GGUF"
+    "repo": "unsloth/gpt-oss-20b-GGUF",
+    "inference_profiles": {
+      "Default": {
+        "description": "Unsloth repository sampling parameters",
+        "args": "--temp 1.0 --top-p 1.0 --top-k 0 --min-p 0.0"
+      }
+    }
   },
   {
     "name": "Llama 2 7B",
@@ -343,6 +373,19 @@
   {
     "name": "LFM2.5 1.2B Instruct",
     "repo": "unsloth/LFM2.5-1.2B-Instruct-GGUF"
+  },
+  {
+    "name": "Muse Glimmer 30B",
+    "repo": "unsloth/Muse-Glimmer-30B-GGUF",
+    "vision_projector": {
+      "patterns": ["mmproj-*.gguf"]
+    },
+    "inference_profiles": {
+      "Default": {
+        "description": "Meta recommended sampling parameters",
+        "args": "--temp 1.0 --top-p 0.95 --top-k 64"
+      }
+    }
   },
   {
     "name": "MiniMax M2.7",

@@ -103,6 +103,16 @@ def get_mtp_config(model_config: dict) -> dict | None:
     return None
 
 
+def get_vision_projector_config(model_config: dict) -> dict | None:
+    """Return the opt-in vision-projector config for a curated model."""
+    if not model_config:
+        return None
+    config = model_config.get("vision_projector")
+    if not config or not config.get("patterns"):
+        return None
+    return config
+
+
 def get_preferred_ubatch(
     model_path: str, platform_id: str, backend: str
 ) -> int | None:

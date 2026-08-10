@@ -143,6 +143,10 @@ def scan_local_models() -> list[dict]:
     for root, dirs, files in os.walk(models_dir):
         for f in files:
             if f.endswith(".gguf"):
+                # Projector files are selected separately in Server Mode; they
+                # cannot be used as the main llama-server model.
+                if f.lower().startswith("mmproj"):
+                    continue
                 path = Path(root) / f
                 rel_path = path.relative_to(models_dir)
                 
@@ -154,6 +158,26 @@ def scan_local_models() -> list[dict]:
                     found.add(str(rel_path))
                     
     return [{"name": m, "path": str(models_dir / m)} for m in sorted(list(found))]
+
+
+def get_local_vision_projectors(
+    model_path: str, patterns: list[str]
+) -> list[Path]:
+    """Find projector GGUFs downloaded alongside the selected model."""
+    if not model_path or not patterns:
+        return []
+
+    model_file = Path(resolve_model_path(model_path))
+    if not model_file.is_file():
+        return []
+
+    projectors = {
+        candidate
+        for pattern in patterns
+        for candidate in model_file.parent.glob(pattern)
+        if candidate.is_file()
+    }
+    return sorted(projectors, key=lambda path: path.name.lower())
 
 def is_quant_downloaded(repo: str, quant: str) -> bool:
     models_dir = get_models_dir()

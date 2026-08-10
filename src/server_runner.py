@@ -42,7 +42,7 @@ def get_server_rdma_args(
 
     return []
 
-def build_server_cmd(engine: str, image: str, model_path: str, context_size: int, use_fa: bool, use_no_mmap: bool, custom_args: str, host: str = "localhost", port: str = "8080", ngl: int = 999, hip_devices: str = "", platform_id: str = "", engine_args: list[str] = None, kv_cache_type: str = "", supports_load_mode: bool = False, api_key: str = "") -> list[str]:
+def build_server_cmd(engine: str, image: str, model_path: str, context_size: int, use_fa: bool, use_no_mmap: bool, custom_args: str, host: str = "localhost", port: str = "8080", ngl: int = 999, hip_devices: str = "", platform_id: str = "", engine_args: list[str] = None, kv_cache_type: str = "", supports_load_mode: bool = False, api_key: str = "", vision_projector_path: str = "") -> list[str]:
     from .model_manager import get_models_dir
     models_dir = str(get_models_dir())
     
@@ -133,6 +133,15 @@ def build_server_cmd(engine: str, image: str, model_path: str, context_size: int
         "--host", "0.0.0.0",
         "--port", str(port)
     ])
+
+    if vision_projector_path:
+        projector_file = Path(resolve_model_path(vision_projector_path)).resolve()
+        models_root = Path(models_dir).resolve()
+        try:
+            projector_rel_path = projector_file.relative_to(models_root)
+        except ValueError as error:
+            raise ValueError("Vision projector must be inside the models directory") from error
+        cmd.extend(["--mmproj", f"/models/{projector_rel_path}"])
     
     if supports_load_mode:
         cmd.extend(["--load-mode", "none" if use_no_mmap else "mmap"])

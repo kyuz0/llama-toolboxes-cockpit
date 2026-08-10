@@ -9,10 +9,10 @@ import subprocess
 import time
 
 from src.toolbox_manager import get_all_toolboxes, get_installed_toolboxes, detect_engines, get_os_toolbox_cmd, get_remote_image_date, is_remote_image_newer, create_toolbox, delete_toolbox, enter_toolbox
-from src.model_manager import scan_local_models, get_hf_quants, get_download_cmd, get_models_dir, save_models_dir, is_quant_downloaded, get_active_platform, save_active_platform, get_default_toolbox, save_default_toolbox, get_benchmark_results_dir, save_benchmark_results_dir
+from src.model_manager import scan_local_models, get_hf_quants, get_download_cmd, get_models_dir, get_local_vision_projectors, save_models_dir, is_quant_downloaded, get_active_platform, save_active_platform, get_default_toolbox, save_default_toolbox, get_benchmark_results_dir, save_benchmark_results_dir
 from src.server_runner import build_server_cmd
 from src.benchmark_runner import BenchmarkSettings, build_benchmark_jobs, run_benchmark_job, write_curve_summary
-from src.config import load_models, get_platforms, get_platform, get_platform_registry, get_model_config, get_inference_profiles, get_mtp_config
+from src.config import load_models, get_platforms, get_platform, get_platform_registry, get_model_config, get_inference_profiles, get_mtp_config, get_vision_projector_config
 from src.widgets import ConfirmModal, SelectModal, SearchableSelect
 import pyfiglet
 
@@ -416,7 +416,7 @@ class LlamaCockpitApp(App):
         margin-bottom: 1;
     }
     
-    #mtp_zone, #profile_zone {
+    #mtp_zone, #projector_zone, #profile_zone {
         display: none;
     }
     
@@ -512,6 +512,16 @@ class LlamaCockpitApp(App):
                             classes="mtp-params-row"
                         ),
                         id="mtp_zone", classes="model-zone"
+                    ),
+                    Vertical(
+                        Label("🖼 Vision Projector (optional)", classes="zone-title"),
+                        Horizontal(
+                            Label("Projector", classes="inline-label"),
+                            SearchableSelect(prompt="Select downloaded projector", id="sel_vision_projector"),
+                            Label("", id="lbl_projector_desc"),
+                            classes="inline-row"
+                        ),
+                        id="projector_zone", classes="model-zone"
                     ),
                     Vertical(
                         Label("🎛️ Inference Profile", classes="zone-title"),
@@ -1015,6 +1025,7 @@ class LlamaCockpitApp(App):
         inp.value = base_arg
         
         mtp_zone = self.query_one("#mtp_zone", Vertical)
+        projector_zone = self.query_one("#projector_zone", Vertical)
         profile_zone = self.query_one("#profile_zone", Vertical)
         
         # ── MTP Zone ────────────────────────────────────────────────────
@@ -1027,6 +1038,34 @@ class LlamaCockpitApp(App):
             self.query_one("#inp_mtp_np", Input).value = str(mtp_config.get("default_np", 1))
         else:
             mtp_zone.styles.display = "none"
+
+        # ── Vision Projector Zone ───────────────────────────────────────
+        projector_config = get_vision_projector_config(model_config)
+        projector_select = self.query_one("#sel_vision_projector", SearchableSelect)
+        projector_description = self.query_one("#lbl_projector_desc", Label)
+        if projector_config:
+            projectors = get_local_vision_projectors(
+                selected_path, projector_config["patterns"]
+            )
+            projector_select.set_options(
+                [("None (text only)", "")]
+                + [(projector.name, str(projector)) for projector in projectors]
+            )
+            projector_select.value = ""
+            projector_zone.styles.display = "block"
+            if projectors:
+                projector_description.update(
+                    "Optional: select one to add --mmproj to llama-server"
+                )
+            else:
+                projector_description.update(
+                    "No downloaded projector found beside this model"
+                )
+        else:
+            projector_zone.styles.display = "none"
+            projector_select.set_options([])
+            projector_select.value = ""
+            projector_description.update("")
         
         # ── Inference Profile Zone ──────────────────────────────────────
         profiles = get_inference_profiles(model_config)
@@ -1474,6 +1513,9 @@ class LlamaCockpitApp(App):
         custom_args = self.query_one("#inp_custom_args", Input).value
         hip_devices = self.query_one("#inp_hip_devices", Input).value
         api_key = self.query_one("#inp_api_key", Input).value
+        vision_projector_path = self.query_one(
+            "#sel_vision_projector", SearchableSelect
+        ).value
 
         # Check compatibility
         is_rocmfp4_image = "rocmfp4" in str(image).lower()
@@ -1485,6 +1527,10 @@ class LlamaCockpitApp(App):
             
         if is_rocmfp4_model and not is_rocmfp4_image:
             self.notify("rocmfp4 models require a rocmfp4 compatible toolbox.", severity="error")
+            return
+
+        if vision_projector_path and not os.path.isfile(vision_projector_path):
+            self.notify("Selected vision projector is no longer available.", severity="error")
             return
             
         if model_path:
@@ -1522,6 +1568,7 @@ class LlamaCockpitApp(App):
                 kv_cache_type=kv_cache_type,
                 supports_load_mode=supports_load_mode,
                 api_key=api_key,
+                vision_projector_path=vision_projector_path,
             )
             with self.suspend():
                 if any(str(arg).startswith("/dev/infiniband") for arg in cmd):
