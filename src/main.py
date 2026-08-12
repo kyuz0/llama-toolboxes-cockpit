@@ -12,7 +12,7 @@ from src.toolbox_manager import get_all_toolboxes, get_installed_toolboxes, dete
 from src.model_manager import scan_local_models, get_hf_quants, get_download_cmd, get_models_dir, get_local_vision_projectors, save_models_dir, is_quant_downloaded, get_active_platform, save_active_platform, get_default_toolbox, save_default_toolbox, get_benchmark_results_dir, save_benchmark_results_dir
 from src.server_runner import build_server_cmd
 from src.benchmark_runner import BenchmarkSettings, build_benchmark_jobs, run_benchmark_job, write_curve_summary
-from src.config import load_models, get_platforms, get_platform, get_platform_registry, get_model_config, get_inference_profiles, get_mtp_config, get_vision_projector_config
+from src.config import load_models, get_platforms, get_platform, get_platform_registry, get_model_config, get_inference_profiles, get_mtp_config, get_vision_projector_config, is_rocmfpx_ref
 from src.widgets import ConfirmModal, SelectModal, SearchableSelect
 import pyfiglet
 
@@ -1298,12 +1298,12 @@ class LlamaCockpitApp(App):
         except Exception:
             selected_image = ""
             
-        is_rocmfpx_image = "rocmfp4" in str(selected_image).lower() or "rocmfpx" in str(selected_image).lower()
+        is_rocmfpx_image = is_rocmfpx_ref(selected_image)
         
         for m in models:
             dt.add_row(m["name"])
             
-            is_rocmfpx_model = "rocmfp4" in m["name"].lower() or "rocmfpx" in m["name"].lower()
+            is_rocmfpx_model = is_rocmfpx_ref(m["name"])
             if is_rocmfpx_image:
                 if not is_rocmfpx_model:
                     continue
@@ -1518,8 +1518,8 @@ class LlamaCockpitApp(App):
         ).value
 
         # Check compatibility
-        is_rocmfp4_image = "rocmfp4" in str(image).lower()
-        is_rocmfp4_model = model_path and "rocmfp4" in str(model_path).lower()
+        is_rocmfp4_image = is_rocmfpx_ref(image)
+        is_rocmfp4_model = bool(model_path) and is_rocmfpx_ref(model_path)
         
         if is_rocmfp4_image and not is_rocmfp4_model:
             self.notify("The rocmfp4 toolbox only supports rocmfp4 quantized models.", severity="error")
