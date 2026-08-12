@@ -140,3 +140,14 @@ def get_preferred_benchmark_ubatch(
 ) -> int | None:
     """Backward-compatible alias for the shared benchmark/inference setting."""
     return get_preferred_ubatch(model_path, platform_id, backend)
+
+
+def is_rocmfpx_ref(value) -> bool:
+    """True when a value names a ROCmFPX toolbox or weight format.
+
+    Matches either spelling used across the codebase and toolboxes:
+    ``rocmfp4`` (e.g. ``raulvidis/...-ROCmFP4-...-GGUF``) and ``rocmfpx``
+    (e.g. the ``rocm-7.2.4-rocmfpx`` toolbox tag).
+    """
+    lowered = str(value).lower()
+    return "rocmfp4" in lowered or "rocmfpx" in lowered

@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from .config import get_preferred_ubatch
+from .config import get_preferred_ubatch, is_rocmfpx_ref
 from .model_manager import resolve_model_path
 from .toolbox_manager import extend_missing_option_pairs, upgrade_groups_for_podman
 from .ubatch_profiles import backend_from_name
@@ -94,7 +94,7 @@ def build_server_cmd(engine: str, image: str, model_path: str, context_size: int
         else:
             cmd.extend(["-e", f"HIP_VISIBLE_DEVICES={hip_devices}"])
             
-    if "rocmfp4" in image.lower():
+    if is_rocmfpx_ref(image):
         cmd.extend([
             "-e", "HSA_OVERRIDE_GFX_VERSION=11.5.1",
             "-e", "GGML_HIP_ENABLE_UNIFIED_MEMORY=1"
