@@ -13,7 +13,7 @@ from src.model_manager import scan_local_models, get_hf_quants, get_download_cmd
 from src.server_runner import build_server_cmd
 from src.benchmark_runner import BenchmarkSettings, build_benchmark_jobs, run_benchmark_job, write_curve_summary
 from src.config import load_models, get_platforms, get_platform, get_platform_registry, get_model_config, get_inference_profiles, get_mtp_config, get_vision_projector_config
-from src.widgets import ConfirmModal, SelectModal, SearchableSelect
+from src.widgets import ConfirmModal, DeprecationModal, SelectModal, SearchableSelect
 import pyfiglet
 
 import importlib.metadata
@@ -373,9 +373,38 @@ class LlamaCockpitApp(App):
         border: none;
     }
     
-    ConfirmModal, SelectModal {
+    ConfirmModal, DeprecationModal, SelectModal {
         align: center middle;
         background: rgba(0, 0, 0, 0.7);
+    }
+
+    #deprecation_dialog {
+        width: 90%;
+        max-width: 100;
+        height: auto;
+        border: solid #ffa000;
+        background: #1e1e1e;
+        padding: 1 2;
+    }
+
+    #deprecation_title {
+        text-align: center;
+        text-style: bold;
+        color: #ffa000;
+        margin-bottom: 1;
+        width: 100%;
+    }
+
+    #deprecation_message {
+        text-align: center;
+        height: auto;
+        width: 100%;
+        margin-bottom: 1;
+    }
+
+    #deprecation_buttons {
+        align: center middle;
+        height: auto;
     }
 
     #confirm_dialog {
@@ -716,6 +745,7 @@ class LlamaCockpitApp(App):
                 display_name = m["name"]
             dl_options.append((display_name, m["repo"]))
         sel_dl.set_options(dl_options)
+        self.push_screen(DeprecationModal())
 
     @work(thread=True)
     def check_app_updates(self):
